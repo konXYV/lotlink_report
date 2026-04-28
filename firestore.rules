@@ -1,0 +1,78 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ─────────────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // getMe() ใช้ได้เฉพาะเมื่อ document ของ caller มีอยู่แล้ว
+    // ห้ามเรียกใน allow create ของ user document ตัวใหม่
+    function getMe() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && getMe().isAdmin == true;
+    }
+
+    function isActive() {
+      return isSignedIn() && getMe().active == true;
+    }
+
+    function isAdminAndActive() {
+      let u = getMe();
+      return isSignedIn() && u.isAdmin == true && u.active == true;
+    }
+
+    // ── users collection ─────────────────────────────────────────────────────
+    match /users/{uid} {
+      // อ่านได้: ตัวเองอ่าน profile ตัวเอง หรือ admin อ่านทุก user
+      allow read: if isSignedIn() && (request.auth.uid == uid || isAdminAndActive());
+
+      // สร้างได้:
+      // - admin ที่ active อยู่ สร้าง user ใหม่ได้ (admin token ผ่าน main app)
+      // - หรือ user สร้าง profile ตัวเองครั้งแรก (uid ตรงกัน, เช่นกรณี secondary app)
+      // *** ไม่เรียก getMe() ที่นี่ เพราะ document ของ caller อาจยังไม่มี (ใหม่)
+      //     ให้ใช้ exists() เพื่อตรวจว่า caller มี profile แล้วหรือยัง
+      allow create: if isSignedIn() && (
+        // path 1: admin สร้าง user ใหม่ด้วย admin token
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.active == true)
+        ||
+        // path 2: user สร้าง profile ตัวเอง (secondary app flow)
+        request.auth.uid == uid
+      );
+
+      // แก้ไขได้: admin หรือ user แก้ไข profile ตัวเอง
+      allow update: if isAdminAndActive() || request.auth.uid == uid;
+
+      // ลบได้: admin เท่านั้น
+      allow delete: if isAdminAndActive();
+    }
+
+    // ── menus collection ─────────────────────────────────────────────────────
+    match /menus/{menuId} {
+      allow read: if isSignedIn() && isActive();
+      allow write: if isAdminAndActive();
+    }
+
+    // ── issues collection ────────────────────────────────────────────────────
+    match /issues/{issueId} {
+      allow read: if isSignedIn() && isActive();
+      allow create: if isSignedIn() && isActive() &&
+        getMe().permissions.issue_add == true;
+      allow update: if isSignedIn() && isActive() &&
+        (isAdmin() || getMe().permissions.issue_edit == true);
+      allow delete: if isSignedIn() && isActive() &&
+        (isAdmin() || getMe().permissions.issue_delete == true);
+    }
+
+    // ── default: deny all ────────────────────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
