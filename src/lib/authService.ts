@@ -18,12 +18,12 @@ export const ALL_PERMISSIONS = [
   { key: "page_dashboard", label: "ເຂົ້າຫນ້າ Dashboard",      group: "ໜ້າທີ່ເຂົ້າໄດ້" },
   { key: "page_issues",    label: "ເຂົ້າຫນ້າ ລາຍງານບັນຫາ",   group: "ໜ້າທີ່ເຂົ້າໄດ້" },
   { key: "page_users",     label: "ເຂົ້າຫນ້າ ຈັດການ Users",   group: "ໜ້າທີ່ເຂົ້າໄດ້" },
-  { key: "issue_add",      label: "ເພີ່ມ Issue ໃໝ່",           group: "ການຈັດການ Issue" },
-  { key: "issue_edit",     label: "ແກ້ໄຂ Issue",               group: "ການຈັດການ Issue" },
-  { key: "issue_delete",   label: "ລຶບ Issue",                  group: "ການຈັດການ Issue" },
-  { key: "issue_import",   label: "Import Excel",               group: "ການຈັດການ Issue" },
-  { key: "issue_export",   label: "Export Excel",               group: "ການຈັດການ Issue" },
-  { key: "issue_print",    label: "ພິມລາຍງານ (Print)",          group: "ການຈັດການ Issue" },
+  { key: "issue_add",      label: "ເພີ່ມ Issue ໃໝ່",           group: "ການຈັດການຟັງຊັ່ນ" },
+  { key: "issue_edit",     label: "ແກ້ໄຂ Issue",               group: "ການຈັດການຟັງຊັ່ນ" },
+  { key: "issue_delete",   label: "ລຶບ Issue",                  group: "ການຈັດການຟັງຊັ່ນ" },
+  { key: "issue_import",   label: "Import Excel",               group: "ການຈັດການຟັງຊັ່ນ" },
+  { key: "issue_export",   label: "Export Excel",               group: "ການຈັດການຟັງຊັ່ນ" },
+  { key: "issue_print",    label: "ພິມລາຍງານ (Print)",          group: "ການຈັດການຟັງຊັ່ນ" },
   { key: "user_manage",    label: "ສ້າງ/ແກ້ໄຂ/ລຶບ User",       group: "ການຈັດການ User" },
 ] as const;
 
