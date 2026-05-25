@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import "./globals.css";
 import AppShell from "@/components/AppShell";
 import { AuthProvider } from "@/lib/authContext";
-import { Providers } from "./providers";
 
 export const metadata: Metadata = {
   
@@ -13,11 +12,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="lo">
       <body>
-        <Providers>
-          <AuthProvider>
-            <AppShell>{children}</AppShell>
-          </AuthProvider>
-        </Providers>
+        <AuthProvider>
+          <AppShell>{children}</AppShell>
+        </AuthProvider>
       </body>
     </html>
   );
