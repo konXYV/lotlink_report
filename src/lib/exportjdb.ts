@@ -8,13 +8,12 @@
 //  R5-R6  = Table header:
 //             A5:A6 = ລຳດັບ, B5:B6 = ງວດທີ
 //             C5:F5 = ການຈ່າຍລາງວັນແອັບ Sokxay (4 cols)
-//             G5:H5 = ການຈ່າຍລາງວັນແອັບ SCN (2 cols)
-//             I5:I6 = ອາກອນ 5%
-//             J5:J6 = ຄ່າທຳນຽມ
-//  R6:    = sub-headers: ລາງວັນ, ທຳນຽມ, ໂຊກຊ້ອນໂຊກ, ໂຊກ Spin | ລາງວັນ, ໂຊກຊ້ອນໂຊກ
+//             G5:I5 = ການຈ່າຍລາງວັນແອັບ SCN (3 cols ລວມ ຄ່າທຳນຽມ)
+//             J5:J6 = ອາກອນ 5%
+//  R6:    = sub-headers: ລາງວັນ, ທຳນຽມ, ໂຊກຊ້ອນໂຊກ, ໂຊກ Spin | ລາງວັນ, ໂຊກຊ້ອນໂຊກ, ຄ່າທຳນຽມ
 //  R7+    = Data rows: A=seq, B=ງວດ, C=ລາງວັນSokxay, D=ທຳນຽມ, E=ໂຊກຊ້ອນໂຊກ,
-//             F=ໂຊກSpin, G=ລາງວັນSCN, H=ໂຊກຊ້ອນໂຊກSCN, I=ອາກອນ5%(tax), J=ຄ່າທຳນຽມ(other)
-//  SUM    = flexible row: C-I totals
+//             F=ໂຊກSpin, G=ລາງວັນSCN, H=ໂຊກຊ້ອນໂຊກSCN, I=ຄ່າທຳນຽມ(other), J=ອາກອນ5%(tax)
+//  SUM    = flexible row: C-J totals
 //  TOTAL  = ລວມຈ່າຍທັງໝົດ (merged A:B label, merged C:E value)
 //  BLANK  = 2 blank rows
 //  SIG    = ຜູ້ສະຫຼຸບ (col H)
@@ -225,35 +224,33 @@ import XLSXStyle, {
     // ── R5: Group headers ────────────────────────────────────────────────────────
     // A5:A6 = ລຳດັບ,  B5:B6 = ງວດທີ
     // C5:F5 = Sokxay (4 cols: C,D,E,F)
-    // G5:H5 = SCN    (2 cols: G,H)
-    // I5:I6 = ອາກອນ 5%
-    // J5:J6 = ຄ່າທຳນຽມ
+    // G5:I5 = SCN    (3 cols: G,H,I)  ← ລວມ ຄ່າທຳນຽມ
+    // J5:J6 = ອາກອນ 5%
     S(4, 0, C("ລຳດັບ",                    sHeader(11)));
     S(4, 1, C("ງວດທີ",                    sHeader(12)));
     S(4, 2, C("ການຈ່າຍລາງວັນແອັບ Sokxay", sHeader(12)));
     for (let c = 3; c <= 5; c++) S(4, c, CE(sHeader(12)));
     S(4, 6, C("ການຈ່າຍລາງວັນແອັບ SCN",   sHeader(12)));
     S(4, 7, CE(sHeader(12)));
-    S(4, 8, C("ອາກອນ 5%",                 sHeader(12)));
-    S(4, 9, C("ຄ່າທຳນຽມ",                 sHeader(12)));
+    S(4, 8, CE(sHeader(12)));
+    S(4, 9, C("ອາກອນ 5%",                 sHeader(12)));
   
     M(4, 0, 5, 0);  // A5:A6
     M(4, 1, 5, 1);  // B5:B6
     M(4, 2, 4, 5);  // C5:F5  (Sokxay 4 cols)
-    M(4, 6, 4, 7);  // G5:H5  (SCN 2 cols)
-    M(4, 8, 5, 8);  // I5:I6
-    M(4, 9, 5, 9);  // J5:J6
+    M(4, 6, 4, 8);  // G5:I5  (SCN 3 cols ລວມ ຄ່າທຳນຽມ)
+    M(4, 9, 5, 9);  // J5:J6  ອາກອນ 5%
   
     // ── R6: Sub-column headers ───────────────────────────────────────────────────
     S(5, 0, CE(sHeader(11)));
     S(5, 1, CE(sHeader(12)));
     S(5, 2, C("ລາງວັນ",      sHeader(11)));
-    S(5, 3, C("ທຳນຽມ",       sHeader(11)));
-    S(5, 4, C("ໂຊກຊ້ອນໂຊກ",  sHeader(11)));
+    S(5, 3, C("ໂຊກຊ້ອນໂຊກ",  sHeader(11)));
+    S(5, 4, C("ທຳນຽມ",       sHeader(11)));
     S(5, 5, C("ໂຊກ Spin",    sHeader(11)));
     S(5, 6, C("ລາງວັນ",      sHeader(11)));
     S(5, 7, C("ໂຊກຊ້ອນໂຊກ",  sHeader(11)));
-    S(5, 8, CE(sHeader(11)));
+    S(5, 8, C("ຄ່າທຳນຽມ",    sHeader(11)));
     S(5, 9, CE(sHeader(11)));
   
     // ── R7+: Data rows ───────────────────────────────────────────────────────────
@@ -262,8 +259,8 @@ import XLSXStyle, {
     let sumC = 0, sumD = 0, sumE = 0, sumF = 0, sumG = 0, sumH = 0, sumI = 0;
     for (const dr of dataRows) {
       sumC += parseNum(dr["ລາງວັນ Sokxay"]);
-      sumD += parseNum(dr["ທຳນຽມ"]);
-      sumE += parseNum(dr["ໂຊກຊ້ອນໂຊກ"]);
+      sumD += parseNum(dr["ໂຊກຊ້ອນໂຊກ"]);
+      sumE += parseNum(dr["ທຳນຽມ"]);
       sumF += parseNum(dr["ໂຊກ Spin"]);
       sumG += parseNum(dr["ລາງວັນ SCN"]);
       sumH += parseNum(dr["ໂຊກຊ້ອນໂຊກ SCN"]);
@@ -280,8 +277,8 @@ import XLSXStyle, {
         S(r, 0, C(i + 1,          { font:{name:FONT,sz:11}, alignment:{horizontal:"center",vertical:"center"}, border:medLeft() }));
         S(r, 1, C(String(dr["ງວດ"]), sDataText("center")));
         S(r, 2, C(parseNum(dr["ລາງວັນ Sokxay"]),   sData("right")));
-        S(r, 3, C(parseNum(dr["ທຳນຽມ"]),            sData("right")));
-        S(r, 4, C(parseNum(dr["ໂຊກຊ້ອນໂຊກ"]),       sData("right")));
+        S(r, 3, C(parseNum(dr["ໂຊກຊ້ອນໂຊກ"]),       sData("right")));
+        S(r, 4, C(parseNum(dr["ທຳນຽມ"]),            sData("right")));
         S(r, 5, C(parseNum(dr["ໂຊກ Spin"]),          sData("right")));
         S(r, 6, C(parseNum(dr["ລາງວັນ SCN"]),        sData("right")));
         S(r, 7, C(parseNum(dr["ໂຊກຊ້ອນໂຊກ SCN"]),   sData("right")));
@@ -290,10 +287,10 @@ import XLSXStyle, {
         for (let c = 1; c <= 7; c++) S(r, c, CE(sData("right")));
       }
   
-      // Col I: ອາກອນ 5% (independent tax items)
-      S(r, 8, tx ? C(tx.BANK_CR, sData("right")) : CE(sData("right")));
-      // Col J: ຄ່າທຳນຽມ — empty in data rows (otherItems appended below)
-      S(r, 9, CE(sData("right")));
+      // Col I (8): ຄ່າທຳນຽມ — empty in data rows (otherItems appended below)
+      S(r, 8, CE(sData("right")));
+      // Col J (9): ອາກອນ 5% (independent tax items)
+      S(r, 9, tx ? C(tx.BANK_CR, sData("right")) : CE(sData("right")));
     }
   
     // ── SUM row ──────────────────────────────────────────────────────────────────
@@ -301,13 +298,13 @@ import XLSXStyle, {
     S(rSum, 0, CE(sSum()));
     S(rSum, 1, CE(sSum()));
     S(rSum, 2, C(sumC, sSum()));
-    S(rSum, 3, C(sumD, sSum()));
-    S(rSum, 4, C(sumE, sSum()));
+    S(rSum, 3, C(sumD, sSum()));  // ທຳນຽມ
+    S(rSum, 4, C(sumE, sSum()));  // ໂຊກຊ້ອນໂຊກ
     S(rSum, 5, C(sumF, sSum()));
     S(rSum, 6, C(sumG, sSum()));
     S(rSum, 7, C(sumH, sSum()));
-    S(rSum, 8, C(sumI, sSum()));
-    S(rSum, 9, CE(sSum()));
+    S(rSum, 8, CE(sSum()));       // ຄ່າທຳນຽມ — appended below
+    S(rSum, 9, C(sumI, sSum()));  // ອາກອນ 5%
     M(rSum, 0, rSum, 1);
   
     // ── TOTAL row ─────────────────────────────────────────────────────────────────
@@ -328,9 +325,10 @@ import XLSXStyle, {
       const label = `[${oth.TXN_TYPE}] ${oth.BANK_DESCRIPTION} (${oth.BANK_DATE})`;
       S(rOther, 0, CE({ font:{name:FONT,sz:10}, fill:{patternType:"solid",fgColor:{rgb:BG_OTHER}}, border:allThin() }));
       S(rOther, 1, C(label, sOtherLabel()));
-      for (let c = 2; c <= 8; c++) S(rOther, c, CE({ font:{name:FONT,sz:10}, fill:{patternType:"solid",fgColor:{rgb:BG_OTHER}}, border:allThin() }));
-      S(rOther, 9, C(oth.BANK_DR, sOtherValue()));
-      M(rOther, 1, rOther, 8);
+      for (let c = 2; c <= 7; c++) S(rOther, c, CE({ font:{name:FONT,sz:10}, fill:{patternType:"solid",fgColor:{rgb:BG_OTHER}}, border:allThin() }));
+      S(rOther, 8, C(oth.BANK_DR, sOtherValue()));
+      S(rOther, 9, CE({ font:{name:FONT,sz:10}, fill:{patternType:"solid",fgColor:{rgb:BG_OTHER}}, border:allThin() }));
+      M(rOther, 1, rOther, 7);
       rOther++;
     }
   
@@ -349,8 +347,8 @@ import XLSXStyle, {
       { wch: 17.43 }, // F: ໂຊກ Spin
       { wch: 16.14 }, // G: ລາງວັນ SCN
       { wch: 18.43 }, // H: ໂຊກຊ້ອນໂຊກ SCN
-      { wch: 18.29 }, // I: ອາກອນ 5%
-      { wch: 17.00 }, // J: ຄ່າທຳນຽມ
+      { wch: 17.00 }, // I: ຄ່າທຳນຽມ
+      { wch: 18.29 }, // J: ອາກອນ 5%
     ];
   
     // ── Row heights ───────────────────────────────────────────────────────────────

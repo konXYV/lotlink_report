@@ -2,10 +2,11 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
   RefreshCw, Search, ChevronUp, ChevronDown,
-  AlertCircle, BarChart3, Printer, X, Filter, Banknote, UserX,
+  AlertCircle, BarChart3, Printer, X, Filter, Banknote, UserX, FileDown,
 } from "lucide-react";
 import { useAuth } from "@/lib/authContext";
 import { logActivity } from "@/lib/activityService";
+import { exportPayout } from "@/lib/ExportPayout";
 
 interface PayoutDrawRow {
   DRAW_ID:       number;
@@ -95,13 +96,20 @@ export default function ScnPayoutDrawidPage() {
   };
 
   // ── fetch payout users for dropdown ──────────────────────────────────────
-  const fetchPayoutUsers = async () => {
+  const fetchPayoutUsers = async (dtFrom: string, dtTo: string) => {
     setLoadingUsers(true);
     try {
-      const res  = await fetch("/api/oracle?view=payout_users");
+      const qs = new URLSearchParams({ view: "payout_users" });
+      if (dtFrom) qs.set("date_from", dtFrom);
+      if (dtTo)   qs.set("date_to",   dtTo);
+      const res  = await fetch(`/api/oracle?${qs}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "ດຶງ users ລົ້ມເຫຼວ");
-      setPayoutUsers(Array.isArray(json.users) ? json.users : []);
+      // API returns { rows: [{PAYOUT_USER, ...}] }
+      const users = (json.rows ?? [])
+        .map((r: Record<string, unknown>) => String(r.PAYOUT_USER ?? ""))
+        .filter(Boolean) as string[];
+      setPayoutUsers(users);
     } catch {
       // silent — dropdown ຍັງໃຊ້ได้ຄືເດີມ
     } finally {
@@ -116,7 +124,7 @@ export default function ScnPayoutDrawidPage() {
   // ── fetch payout users only after date is selected ────────────────────────
   useEffect(() => {
     if (dateFrom || dateTo) {
-      fetchPayoutUsers();
+      fetchPayoutUsers(dateFrom, dateTo);
     } else {
       // reset dropdown when dates are cleared
       setPayoutUsers([]);
@@ -186,10 +194,21 @@ export default function ScnPayoutDrawidPage() {
     });
   }, [rows, appliedSearch, sort, hasSearched]);
 
-  // ── payer list ────────────────────────────────────────────────────────────
-  const payerList = useMemo(() =>
-    payers.map(p => ({ user: p.PAYOUT_USER, date: p.PAYOUT_DATE })),
-  [payers]);
+  // ── payer list grouped by user (one row per user, dates horizontal) ───────
+  const payerMap = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    payers.forEach(p => {
+      const u = p.PAYOUT_USER;
+      if (!u) return;
+      if (!map[u]) map[u] = [];
+      if (p.PAYOUT_DATE && !map[u].includes(p.PAYOUT_DATE)) {
+        map[u].push(p.PAYOUT_DATE);
+      }
+    });
+    return map;
+  }, [payers]);
+
+  const payerUsers = useMemo(() => Object.keys(payerMap), [payerMap]);
 
   // ── grand totals ──────────────────────────────────────────────────────────
   const grandTotal = useMemo(() => ({
@@ -208,6 +227,21 @@ export default function ScnPayoutDrawidPage() {
     appliedExcludeUsers.length > 0 && `ຍົກເວັ້ນ user: ${appliedExcludeUsers.map(u => `"${u}"`).join(", ")}`,
     appliedSearch               && `ຄົ້ນຫາ: "${appliedSearch}"`,
   ].filter(Boolean).join("  |  ");
+
+  const handleExport = async () => {
+    if (user) logActivity({
+      uid: user.uid, displayName: user.displayName, email: user.email,
+      action: "payout_drawid_export",
+      detail: `Payout Export: ${appliedDateFrom || ""}~${appliedDateTo || ""} (${filtered.length} ງວດ) ຍົກເວັ້ນ: ${appliedExcludeUsers.join(", ") || "-"}`,
+    });
+    await exportPayout(
+      filtered,
+      payerMap,
+      appliedDateFrom,
+      appliedDateTo,
+      user?.displayName ?? "",
+    );
+  };
 
   const handlePrint = () => {
     setPrintTime(new Date().toLocaleString("lo-LA"));
@@ -428,10 +462,16 @@ export default function ScnPayoutDrawidPage() {
               <RefreshCw size={13} className={loadingIds ? "animate-spin" : ""} /> ໂຫຼດໃໝ່
             </button>
             {perm("issue_print") && (
-              <button onClick={handlePrint} disabled={filtered.length === 0}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-700 text-white hover:bg-slate-800 disabled:opacity-40 transition">
-                <Printer size={13} /> ພິມ A4
-              </button>
+              <>
+                <button onClick={handleExport} disabled={filtered.length === 0}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40 transition">
+                  <FileDown size={13} /> Export Excel
+                </button>
+                <button onClick={handlePrint} disabled={filtered.length === 0}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-700 text-white hover:bg-slate-800 disabled:opacity-40 transition">
+                  <Printer size={13} /> ພິມ A4
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -642,7 +682,7 @@ export default function ScnPayoutDrawidPage() {
                         ລວມຍອດເງິນ<SortIcon col="TOTAL_AMOUNT" sort={sort} />
                       </span>
                     </th>
-                    <th className={TH}>ອາກອນ5%ໃຫ້ໃນລະບຽບ</th>
+                    <th className={TH}>ອາກອນ5%ໃຫ້ໃນລະບົບ</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -692,7 +732,7 @@ export default function ScnPayoutDrawidPage() {
 
                       {/* ລວມລາຍຈ່າຍໃຫ້ໃນລະບຽບ */}
                       <tr className="grandtotal-row bg-gray-200 font-bold">
-                        <td className="px-3 py-2 text-center border border-black" colSpan={3}>ລວມລາຍຈ່າຍໃຫ້ໃນລະບຽບ</td>
+                        <td className="px-3 py-2 text-center border border-black" colSpan={3}>ລວມລາຍຈ່າຍໃຫ້ໃນລະບົບ</td>
                         <td className="px-3 py-2 text-right font-mono border border-black">
                           {fmt(grandTotal.TOTAL_AMOUNT)}
                         </td>
@@ -722,72 +762,56 @@ export default function ScnPayoutDrawidPage() {
           </div>
         )}
 
-        {/* ── FIX 2: PAYOUT_USER block — ບໍ່ມີ border, ຊິດຊ້າຍ ── */}
+        {/* ── PAYOUT_USER block — user once, dates horizontal ── */}
         {hasSearched && filtered.length > 0 && (
-          <div className="payout-user-block" style={{
+          <div className="payout-user-block bg-white border border-slate-200 rounded-xl p-4 overflow-x-auto" style={{
             marginTop: "8mm",
             pageBreakInside: "avoid",
             marginLeft: 0,
           }}>
-            <div className="payout-user-block-title" style={{
-              fontWeight: "bold",
-              fontSize: "12px",
-              marginBottom: "6px",
+            <div className="payout-user-block-title font-bold text-sm mb-2" style={{
               fontFamily: "'Phetsarath OT', 'Phetsarath', sans-serif",
             }}>
               ລະບົບໃຫ້ໃໝ່
             </div>
-            {/* FIX 2: ໃຊ້ plain text layout — ບໍ່ມີ table border */}
             <table style={{
               borderCollapse: "collapse",
-              fontSize: "10px",
+              fontSize: "12px",
               border: "none",
               fontFamily: "'Phetsarath OT', 'Phetsarath', sans-serif",
               marginLeft: 0,
             }}>
-              <thead>
-                <tr>
-                  <th style={{
-                    border: "none",
-                    padding: "3px 24px 3px 0",
-                    textAlign: "left",
-                    fontWeight: "bold",
-                    background: "transparent",
-                    minWidth: "160px",
-                  }}>
-                    USER:
-                  </th>
-                  <th style={{
-                    border: "none",
-                    padding: "3px 0",
-                    textAlign: "left",
-                    fontWeight: "bold",
-                    background: "transparent",
-                    minWidth: "120px",
-                  }}>
-                    ອັນທີຄືລາຍຈ່າຍ
-                  </th>
-                </tr>
-              </thead>
               <tbody>
-                {payerList.length > 0 ? (
-                  payerList.map((p, idx) => (
-                    <tr key={idx}>
-                      <td style={{ border: "none", padding: "2px 24px 2px 0", background: "transparent" }}>
-                        {p.user}
+                {payerUsers.length > 0 ? (
+                  payerUsers.map((u) => (
+                    <tr key={u}>
+                      <td style={{
+                        border: "none",
+                        padding: "3px 28px 3px 0",
+                        background: "transparent",
+                        fontWeight: "bold",
+                        minWidth: "160px",
+                        whiteSpace: "nowrap",
+                      }}>
+                        {u}
                       </td>
-                      <td style={{ border: "none", padding: "2px 0", background: "transparent" }}>
-                        {p.date}
-                      </td>
+                      {payerMap[u].map((date, idx) => (
+                        <td key={idx} style={{
+                          border: "none",
+                          padding: "3px 20px 3px 0",
+                          background: "transparent",
+                          whiteSpace: "nowrap",
+                          color: "#1d4ed8",
+                        }}>
+                          {date}
+                        </td>
+                      ))}
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td style={{ border: "none", padding: "2px 24px 2px 0", color: "#999", fontStyle: "italic" }}>
+                    <td style={{ border: "none", padding: "3px 0", color: "#999", fontStyle: "italic" }}>
                       (ລໍຖ້າ PAYOUT_USER ຈາກ Oracle)
-                    </td>
-                    <td style={{ border: "none", padding: "2px 0", color: "#999", fontStyle: "italic" }}>
-                      (ລໍຖ້າ PAYOUT_DATE)
                     </td>
                   </tr>
                 )}

@@ -17,13 +17,11 @@ import XLSXStyle, {
 // ══════════════════════════════════════════════════════════════════════════════
 
 interface JdbRow {
-  "ງວດ":             string | number;
-  "ລາງວັນ Sokxay":   string | number;
-  "ໂຊກຊ້ອນໂຊກ":      string | number;
-  "ທຳນຽມ":           string | number;
-  "ໂຊກ Spin":        string | number;
-  "ລາງວັນ SCN":      string | number;
-  "ໂຊກຊ້ອນໂຊກ SCN": string | number;
+  "ງວດ":           string | number;
+  "ລາງວັນ Sokxay": string | number;
+  "ໂຊກຊ້ອນໂຊກ":    string | number;
+  "ທຳນຽມ":         string | number;
+  "ໂຊກ Spin":      string | number;
 }
 
 interface JdbTaxRow {
@@ -40,25 +38,20 @@ interface JdbOtherRow {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-//  Excel Export — inlined (xlsx-js-style)
-//  Layout ຕາມ template ບໍດສະຫຼຸບລາງວັນJDB4_2026.xlsx
-//  Cols A–J (0–9):
-//    A=ລຳດັບ  B=ງວດທີ  C=ລາງວັນSokxay  D=ທຳນຽມ  E=ໂຊກຊ້ອນໂຊກ  F=ໂຊກSpin
-//    G=ລາງວັນSCN  H=ໂຊກຊ້ອນໂຊກSCN  I=ອາກອນ5%  J=ຄ່າທຳນຽມ
+//  Excel Export (xlsx-js-style)
+//  Cols A–G (0–6):
+//    A=ລຳດັບ  B=ງວດທີ  C=ລາງວັນ  D=ໂຊກຊ້ອນໂຊກ  E=ທຳນຽມ  F=ໂຊກSpin  G=ອາກອນ5%
 // ══════════════════════════════════════════════════════════════════════════════
 
-const FONT       = "Phetsarath OT";
-const BG_HEADER  = "9DC3E6";
-const BG_TOTAL   = "BDD7EE";
-const BG_OTHER   = "FFF2CC";
-const LAST_COL   = 9; // J
+const FONT      = "Phetsarath OT";
+const BG_HEADER = "9DC3E6";
+const BG_TOTAL  = "BDD7EE";
+const BG_OTHER  = "FFF2CC";
+const LAST_COL  = 6; // G
 
 type BSide = { color: CellStyleColor; style?: BorderType };
-const thin   = (): BSide => ({ style: "thin",   color: { rgb: "000000" } });
-const medium = (): BSide => ({ style: "medium", color: { rgb: "000000" } });
-const thick  = (): BSide => ({ style: "thick",  color: { rgb: "000000" } });
-const allThin  = (): CellStyle["border"] => ({ left:thin(), right:thin(), top:thin(), bottom:thin() });
-const medLeft  = (): CellStyle["border"] => ({ left:medium(), right:thin(), top:thin(), bottom:thin() });
+const thin    = (): BSide => ({ style: "thin",   color: { rgb: "000000" } });
+const allThin = (): CellStyle["border"] => ({ left:thin(), right:thin(), top:thin(), bottom:thin() });
 
 const sTitle = (sz = 12, bold = false): CellStyle => ({
   font:      { name: FONT, sz, bold },
@@ -70,11 +63,11 @@ const sHeader = (sz = 11): CellStyle => ({
   alignment: { horizontal: "center", vertical: "center", wrapText: true },
   border:    allThin(),
 });
-const sData = (align: "center" | "right" = "right", leftMed = false): CellStyle => ({
+const sData = (align: "center" | "right" = "right"): CellStyle => ({
   font:      { name: FONT, sz: 11 },
   alignment: { horizontal: align, vertical: "center" },
-  numFmt:    "#,##0",
-  border:    leftMed ? medLeft() : allThin(),
+  numFmt:    "#,##0.00",
+  border:    allThin(),
 });
 const sDataText = (align: "center" | "left" = "center"): CellStyle => ({
   font:      { name: FONT, sz: 11 },
@@ -85,21 +78,21 @@ const sSum = (): CellStyle => ({
   font:      { name: FONT, bold: true, sz: 11 },
   fill:      { patternType: "solid", fgColor: { rgb: BG_HEADER } },
   alignment: { horizontal: "center", vertical: "center" },
-  numFmt:    "#,##0",
+  numFmt:    "#,##0.00",
   border:    allThin(),
 });
 const sTotalLabel = (): CellStyle => ({
   font:      { name: FONT, bold: true, sz: 12 },
   fill:      { patternType: "solid", fgColor: { rgb: BG_TOTAL } },
   alignment: { horizontal: "center", vertical: "center" },
-  border:    { bottom: thick() },
+  border:    allThin(),
 });
 const sTotalValue = (): CellStyle => ({
   font:      { name: FONT, bold: true, sz: 12 },
   fill:      { patternType: "solid", fgColor: { rgb: BG_TOTAL } },
   alignment: { horizontal: "center", vertical: "center" },
-  numFmt:    "#,##0",
-  border:    { bottom: thick() },
+  numFmt:    "#,##0.00",
+  border:    allThin(),
 });
 const sOtherLabel = (): CellStyle => ({
   font:      { name: FONT, sz: 10, italic: true, color: { rgb: "5C4A00" } },
@@ -111,12 +104,21 @@ const sOtherValue = (): CellStyle => ({
   font:      { name: FONT, sz: 10, bold: true, color: { rgb: "7B5C00" } },
   fill:      { patternType: "solid", fgColor: { rgb: BG_OTHER } },
   alignment: { horizontal: "right", vertical: "center" },
-  numFmt:    "#,##0",
+  numFmt:    "#,##0.00",
   border:    allThin(),
 });
 
-const C  = (v: string | number, s: CellStyle): CellObject => ({ v, t: typeof v === "number" ? "n" : "s", s } as CellObject);
-const CE = (s: CellStyle): CellObject => ({ v: "", t: "s", s } as CellObject);
+/** ຕາລາງຄ່າ (string ຫຼື number) */
+const C  = (v: string | number, s: CellStyle): CellObject =>
+  ({ v, t: typeof v === "number" ? "n" : "s", s } as CellObject);
+
+/** ຕາລາງຫວ່າງ */
+const CE = (s: CellStyle): CellObject =>
+  ({ v: "", t: "s", s } as CellObject);
+
+/** ຕາລາງສູດ Excel — v ໃຊ້ເປັນ cached value, f ເປັນ formula string */
+const CF = (v: number, formula: string, s: CellStyle): CellObject =>
+  ({ v, f: formula, t: "n", s } as CellObject);
 
 function parseNum(v: string | number | null | undefined): number {
   if (v == null || v === "") return 0;
@@ -140,126 +142,221 @@ function monthLabel(s: string): string {
   return `ເດືອນ ${MONTH_LAO[d.getMonth()+1] ?? ""} ${d.getFullYear()}`;
 }
 
-function buildSheet(dateDisplay: string, dataRows: JdbRow[], taxItems: JdbTaxRow[], otherItems: JdbOtherRow[]): WorkSheet {
+function buildSheet(
+  dateDisplay: string,
+  dataRows:    JdbRow[],
+  taxItems:    JdbTaxRow[],
+  otherItems:  JdbOtherRow[],
+): WorkSheet {
   const ws: WorkSheet = {};
   const merges: XLSXStyle.Range[] = [];
-  const S = (r: number, c: number, cl: CellObject) => { ws[XLSXStyle.utils.encode_cell({ r, c })] = cl; };
-  const M = (r1: number, c1: number, r2: number, c2: number) => { merges.push({ s:{r:r1,c:c1}, e:{r:r2,c:c2} }); };
 
-  // R1-R3: Title
-  S(0,0, C("   ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ",                       sTitle(12)));
-  S(1,0, C("    ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນາຖາວອນ",       sTitle(12)));
-  S(2,0, C(`ຕາຕາລາງສະຫຼຸບຈ່າຍລາງວັນຫວຍຂອງ (JDB) ວັນທີ ${dateDisplay}`,  sTitle(12, true)));
-  M(0,0, 0,LAST_COL); M(1,0, 1,LAST_COL); M(2,0, 2,LAST_COL);
+  const S = (r: number, c: number, cl: CellObject) => {
+    ws[XLSXStyle.utils.encode_cell({ r, c })] = cl;
+  };
+  const M = (r1: number, c1: number, r2: number, c2: number) => {
+    merges.push({ s:{r:r1,c:c1}, e:{r:r2,c:c2} });
+  };
 
-  // R4: blank
-  S(3,0, CE(sTitle())); M(3,0, 3,LAST_COL);
+  // ── Rows 1-4: Title ───────────────────────────────────────────────────────
+  S(0,0, C("   ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ",                      sTitle(12)));
+  S(1,0, C("    ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນາຖາວອນ",      sTitle(12)));
+  S(2,0, C(`ຕາຕາລາງສະຫຼຸບຈ່າຍລາງວັນຫວຍຂອງ (JDB) ວັນທີ ${dateDisplay}`, sTitle(12, true)));
+  S(3,0, CE(sTitle()));
+  M(0,0, 0,LAST_COL); M(1,0, 1,LAST_COL); M(2,0, 2,LAST_COL); M(3,0, 3,LAST_COL);
 
-  // R5: Group headers
+  // ── Row 5: Group headers ──────────────────────────────────────────────────
   S(4,0, C("ລຳດັບ",                    sHeader(11)));
   S(4,1, C("ງວດທີ",                    sHeader(12)));
   S(4,2, C("ການຈ່າຍລາງວັນແອັບ Sokxay", sHeader(12)));
-  for (let c=3; c<=5; c++) S(4,c, CE(sHeader(12)));
-  S(4,6, C("ການຈ່າຍລາງວັນແອັບ SCN",   sHeader(12)));
-  S(4,7, CE(sHeader(12)));
-  S(4,8, C("ອາກອນ 5%",                 sHeader(12)));
-  S(4,9, C("ຄ່າທຳນຽມ",                 sHeader(12)));
-  M(4,0, 5,0); M(4,1, 5,1); M(4,2, 4,5); M(4,6, 4,7); M(4,8, 5,8); M(4,9, 5,9);
+  for (let c = 3; c <= 5; c++) S(4,c, CE(sHeader(12)));
+  S(4,6, C("ອາກອນ 5%",                 sHeader(12)));
+  M(4,0, 5,0); M(4,1, 5,1); M(4,2, 4,5); M(4,6, 5,6);
 
-  // R6: Sub-headers
+  // ── Row 6: Sub-headers ────────────────────────────────────────────────────
   S(5,0, CE(sHeader(11))); S(5,1, CE(sHeader(12)));
   S(5,2, C("ລາງວັນ",     sHeader(11)));
-  S(5,3, C("ທຳນຽມ",      sHeader(11)));
-  S(5,4, C("ໂຊກຊ້ອນໂຊກ", sHeader(11)));
+  S(5,3, C("ໂຊກຊ້ອນໂຊກ", sHeader(11)));
+  S(5,4, C("ທຳນຽມ",      sHeader(11)));
   S(5,5, C("ໂຊກ Spin",   sHeader(11)));
-  S(5,6, C("ລາງວັນ",     sHeader(11)));
-  S(5,7, C("ໂຊກຊ້ອນໂຊກ", sHeader(11)));
-  S(5,8, CE(sHeader(11))); S(5,9, CE(sHeader(11)));
+  S(5,6, CE(sHeader(11)));
 
-  // R7+: Data rows
-  const totalDataRows = Math.max(dataRows.length, taxItems.length);
-  let sumC=0, sumD=0, sumE=0, sumF=0, sumG=0, sumH=0;
+  // ── Data rows ─────────────────────────────────────────────────────────────
+  const actualRows    = Math.max(dataRows.length, taxItems.length);
+  const MIN_ROWS      = actualRows < 5 ? 2 : 0;
+  const totalDataRows = Math.max(actualRows, MIN_ROWS);
+
+  // Excel row numbers (1-based) for formula ranges
+  // Row index 6 = Excel row 7 (first data row)
+  const firstDataExcelRow = 7;
+  const lastDataExcelRow  = 6 + totalDataRows; // row index 6+n-1 → Excel row 6+n
+
+  const numCell = (v: number): CellObject =>
+    v === 0 ? CE(sData("right")) : C(v, sData("right"));
+
+  // Pre-calculate sums (used as cached values inside CF)
+  let sumC=0, sumD=0, sumE=0, sumF=0;
   for (const dr of dataRows) {
     sumC += parseNum(dr["ລາງວັນ Sokxay"]);
-    sumD += parseNum(dr["ທຳນຽມ"]);
-    sumE += parseNum(dr["ໂຊກຊ້ອນໂຊກ"]);
+    sumD += parseNum(dr["ໂຊກຊ້ອນໂຊກ"]);
+    sumE += parseNum(dr["ທຳນຽມ"]);
     sumF += parseNum(dr["ໂຊກ Spin"]);
-    sumG += parseNum(dr["ລາງວັນ SCN"]);
-    sumH += parseNum(dr["ໂຊກຊ້ອນໂຊກ SCN"]);
   }
   const sumI = taxItems.reduce((s,t) => s + t.BANK_CR, 0);
 
-  for (let i=0; i<totalDataRows; i++) {
+  for (let i = 0; i < totalDataRows; i++) {
     const r  = 6 + i;
-    const dr = dataRows[i]  ?? null;
-    const tx = taxItems[i]  ?? null;
+    const dr = dataRows[i] ?? null;
+    const tx = taxItems[i] ?? null;
+
     if (dr) {
-      S(r,0, C(i+1,             { font:{name:FONT,sz:11}, alignment:{horizontal:"center",vertical:"center"}, border:medLeft() }));
-      S(r,1, C(String(dr["ງວດ"]), sDataText("center")));
-      S(r,2, C(parseNum(dr["ລາງວັນ Sokxay"]),   sData("right")));
-      S(r,3, C(parseNum(dr["ທຳນຽມ"]),            sData("right")));
-      S(r,4, C(parseNum(dr["ໂຊກຊ້ອນໂຊກ"]),       sData("right")));
-      S(r,5, C(parseNum(dr["ໂຊກ Spin"]),          sData("right")));
-      S(r,6, C(parseNum(dr["ລາງວັນ SCN"]),        sData("right")));
-      S(r,7, C(parseNum(dr["ໂຊກຊ້ອນໂຊກ SCN"]),   sData("right")));
+      S(r,0, C(i+1, {
+        font:      { name:FONT, sz:11 },
+        alignment: { horizontal:"center", vertical:"center" },
+        border:    allThin(),
+      }));
+      S(r,1, C(String(dr["ງວດ"]),                    sDataText("center")));
+      S(r,2, numCell(parseNum(dr["ລາງວັນ Sokxay"])));
+      S(r,3, numCell(parseNum(dr["ໂຊກຊ້ອນໂຊກ"])));
+      S(r,4, numCell(parseNum(dr["ທຳນຽມ"])));
+      S(r,5, numCell(parseNum(dr["ໂຊກ Spin"])));
     } else {
-      S(r,0, CE({ font:{name:FONT,sz:11}, border:medLeft() }));
-      for (let c=1; c<=7; c++) S(r,c, CE(sData("right")));
+      S(r,0, CE({ font:{ name:FONT, sz:11 }, border:allThin() }));
+      for (let c = 1; c <= 5; c++) S(r,c, CE(sData("right")));
     }
-    S(r,8, tx ? C(tx.BANK_CR, sData("right")) : CE(sData("right")));
-    S(r,9, CE(sData("right")));
+    S(r,6, tx && tx.BANK_CR !== 0
+      ? C(tx.BANK_CR, sData("right"))
+      : CE(sData("right")));
   }
 
-  // SUM row
-  const rSum = 6 + totalDataRows;
-  S(rSum,0, CE(sSum())); S(rSum,1, CE(sSum()));
-  S(rSum,2, C(sumC,sSum())); S(rSum,3, C(sumD,sSum()));
-  S(rSum,4, C(sumE,sSum())); S(rSum,5, C(sumF,sSum()));
-  S(rSum,6, C(sumG,sSum())); S(rSum,7, C(sumH,sSum()));
-  S(rSum,8, C(sumI,sSum())); S(rSum,9, CE(sSum()));
+  // ── Sum row (ໃຊ້ສູດ SUM) ──────────────────────────────────────────────────
+  const rSum      = 6 + totalDataRows;
+  const rSumExcel = rSum + 1; // 1-based Excel row of the sum row
+
+  S(rSum,0, CE(sSum()));
+  S(rSum,1, CE(sSum()));
+  S(rSum,2, CF(sumC, `SUM(C${firstDataExcelRow}:C${lastDataExcelRow})`, sSum()));
+  S(rSum,3, CF(sumD, `SUM(D${firstDataExcelRow}:D${lastDataExcelRow})`, sSum()));
+  S(rSum,4, CF(sumE, `SUM(E${firstDataExcelRow}:E${lastDataExcelRow})`, sSum()));
+  S(rSum,5, CF(sumF, `SUM(F${firstDataExcelRow}:F${lastDataExcelRow})`, sSum()));
+  S(rSum,6, CF(sumI, `SUM(G${firstDataExcelRow}:G${lastDataExcelRow})`, sSum()));
   M(rSum,0, rSum,1);
 
-  // TOTAL row
+  // ── Grand-total row (ສູດອ້າງ sum row, merge C:G) ──────────────────────────
   const rTot  = rSum + 1;
-  const grand = sumC + sumD + sumE + sumF + sumG + sumH;
-  S(rTot,0, C("ລວມຈ່າຍທັງໝົດ", sTotalLabel())); S(rTot,1, CE(sTotalLabel()));
-  S(rTot,2, C(grand, sTotalValue())); S(rTot,3, CE(sTotalValue())); S(rTot,4, CE(sTotalValue()));
-  for (let c=5; c<=LAST_COL; c++) S(rTot,c, CE(sTotalLabel()));
-  M(rTot,0, rTot,1); M(rTot,2, rTot,4);
+  const grand = sumC + sumD + sumE + sumF;
 
-  // Other items rows
+  S(rTot,0, C("ລວມຈ່າຍທັງໝົດ", sTotalLabel()));
+  S(rTot,1, CE(sTotalLabel()));
+  // formula: sum the four prize-type columns from the sum row
+  S(rTot,2, CF(
+    grand,
+    `C${rSumExcel}+D${rSumExcel}+E${rSumExcel}+F${rSumExcel}`,
+    sTotalValue(),
+  ));
+  S(rTot,3, CE(sTotalValue()));
+  S(rTot,4, CE(sTotalValue()));
+  S(rTot,5, CE(sTotalValue()));
+  S(rTot,6, CE(sTotalValue()));   // G ຢູ່ໃນ merge ດ້ວຍ
+  M(rTot,0, rTot,1);
+  M(rTot,2, rTot,6);              // ← C:G (ເດີມ C:F, ແກ້ໃຫ້ຄົບທຸກຖັນ)
+
+  // ── Other TXN_TYPE rows ────────────────────────────────────────────────────
   let rOther = rTot + 1;
   for (const oth of otherItems) {
     const label = `[${oth.TXN_TYPE}] ${oth.BANK_DESCRIPTION} (${oth.BANK_DATE})`;
-    const oBg: CellStyle = { font:{name:FONT,sz:10}, fill:{patternType:"solid",fgColor:{rgb:BG_OTHER}}, border:allThin() };
+    const oBg: CellStyle = {
+      font:   { name:FONT, sz:10 },
+      fill:   { patternType:"solid", fgColor:{ rgb:BG_OTHER } },
+      border: allThin(),
+    };
     S(rOther,0, CE(oBg));
     S(rOther,1, C(label, sOtherLabel()));
-    for (let c=2; c<=8; c++) S(rOther,c, CE(oBg));
-    S(rOther,9, C(oth.BANK_DR, sOtherValue()));
-    M(rOther,1, rOther,8);
+    for (let c = 2; c <= 5; c++) S(rOther,c, CE(oBg));
+    S(rOther,6, C(oth.BANK_DR, sOtherValue()));
+    M(rOther,1, rOther,5);
     rOther++;
   }
 
-  // Signature row
-  const rSig = rOther + 2;
-  const sSig: CellStyle = { font:{name:FONT,sz:11}, alignment:{horizontal:"center"} };
-  S(rSig,7, C("ຜູ້ສະຫຼຸບ", sSig));
+  // ── Signature section ─────────────────────────────────────────────────────
+  // 7 blank spacer rows (ເພີ່ມຈາກ 3 → 7 ເພື່ອລະຍະຫ່າງ) → sig-line → sig-label
+  const rSigLine  = rOther + 7;
+  const rSigLabel = rSigLine + 1;
 
-  // Column widths
+  const sSigLine: CellStyle = {
+    font:      { name: FONT, sz: 11 },
+    alignment: { horizontal: "center", vertical: "bottom" },
+  };
+  const sSigLabel: CellStyle = {
+    font:      { name: FONT, sz: 11, bold: true },
+    alignment: { horizontal: "center", vertical: "center" },
+  };
+  const sSigEmpty: CellStyle = { font: { name: FONT, sz: 11 } };
+
+  // sig line row: A-C merged | D spacer | E-G merged
+  S(rSigLine,0, CE(sSigLine)); S(rSigLine,1, CE(sSigLine)); S(rSigLine,2, CE(sSigLine));
+  S(rSigLine,3, CE(sSigEmpty));
+  S(rSigLine,4, CE(sSigLine)); S(rSigLine,5, CE(sSigLine)); S(rSigLine,6, CE(sSigLine));
+  M(rSigLine,0, rSigLine,2); M(rSigLine,4, rSigLine,6);
+
+  // sig label row
+  S(rSigLabel,0, C("ຜູ້ສະຫຼຸບ", sSigLabel));
+  S(rSigLabel,1, CE(sSigLabel)); S(rSigLabel,2, CE(sSigLabel));
+  S(rSigLabel,3, CE(sSigEmpty));
+  S(rSigLabel,4, C("ຜູ້ກວດ", sSigLabel));
+  S(rSigLabel,5, CE(sSigLabel)); S(rSigLabel,6, CE(sSigLabel));
+  M(rSigLabel,0, rSigLabel,2); M(rSigLabel,4, rSigLabel,6);
+
+  // ── Column widths ─────────────────────────────────────────────────────────
   ws["!cols"] = [
-    {wch:5.86},{wch:12.29},{wch:18.71},{wch:14.71},{wch:17.57},
-    {wch:17.43},{wch:16.14},{wch:18.43},{wch:18.29},{wch:17.00},
+    {wch:  5.82},  // A ລຳດັບ
+    {wch: 11.82},  // B ງວດທີ
+    {wch: 16.82},  // C ລາງວັນ
+    {wch: 16.82},  // D ໂຊກຊ້ອນໂຊກ
+    {wch: 16.82},  // E ທຳນຽມ
+    {wch: 16.82},  // F ໂຊກ Spin
+    {wch: 16.82},  // G ອາກອນ 5%
   ];
+
+  // ── Row heights ───────────────────────────────────────────────────────────
   ws["!rows"] = [
-    {hpt:15.0},{hpt:15.0},{hpt:15.75},{hpt:15.0},
-    {hpt:29.25},{hpt:28.5},
-    ...Array.from({length:totalDataRows}, () => ({hpt:24.95})),
-    {hpt:35.25},{hpt:43.5},
-    ...Array.from({length:otherItems.length}, () => ({hpt:28.0})),
-    {hpt:15.0},{hpt:15.0},{hpt:18.0},
+    {hpt:15.0},{hpt:15.0},{hpt:15.75},{hpt:15.0},          // rows 1-4  title
+    {hpt:29.25},{hpt:28.5},                                  // rows 5-6  headers
+    ...Array.from({length:totalDataRows}, ()=>({hpt:22.0})), // data rows
+    {hpt:32.0},                                              // sum row
+    {hpt:40.0},                                              // grand total
+    ...Array.from({length:otherItems.length}, ()=>({hpt:26.0})), // other rows
+    ...Array.from({length:7}, ()=>({hpt:15.0})),             // 7 spacer rows (ເດີມ 3)
+    {hpt:28.0},                                              // sig line
+    {hpt:20.0},                                              // sig label
   ];
+
+  // ── Page setup: A4 portrait, fit to 1 page wide ───────────────────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (ws as any)["!pageSetup"] = {
+    paperSize:   9,          // A4
+    orientation: "portrait",
+    fitToPage:   true,
+    fitToWidth:  1,          // ໃຫ້ພໍດີ 1 ໜ້າ width
+    fitToHeight: 0,          // ຄວາມສູງ auto
+    scale:       100,
+  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (ws as any)["!margins"] = {
+    left:   0.197, right:  0.197,
+    top:    0.394, bottom: 0.394,
+    header: 0.118, footer: 0.118,
+  };
+
+  // ── Print area ────────────────────────────────────────────────────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (ws as any)["!printHeader"] = "";
+
   ws["!merges"] = merges;
-  ws["!ref"] = XLSXStyle.utils.encode_range({r:0,c:0}, {r:rSig,c:LAST_COL});
+  ws["!ref"]    = XLSXStyle.utils.encode_range(
+    { r:0, c:0 },
+    { r:rSigLabel, c:LAST_COL },
+  );
   return ws;
 }
 
@@ -276,7 +373,10 @@ async function exportJdbReward(
     : `${fmtDate(dateFrom)} ຫາ ${fmtDate(dateTo)}`;
   const ws = buildSheet(dateDisplay, dataRows, taxItems, otherItems);
   const wb = XLSXStyle.utils.book_new();
-  XLSXStyle.utils.book_append_sheet(wb, ws, (monthLabel(dateFrom) || "JDB Report").slice(0,31));
+  XLSXStyle.utils.book_append_sheet(
+    wb, ws,
+    (monthLabel(dateFrom) || "JDB Report").slice(0,31),
+  );
   XLSXStyle.writeFile(wb, `JDB_Reward_${dateFrom||"all"}_to_${dateTo||"all"}.xlsx`);
 }
 
@@ -524,9 +624,7 @@ export default function JdbRewardSummaryPage() {
       parseN(totalRow["ລາງວັນ Sokxay"]) +
       parseN(totalRow["ທຳນຽມ"]) +
       parseN(totalRow["ໂຊກຊ້ອນໂຊກ"]) +
-      parseN(totalRow["ໂຊກ Spin"]) +
-      parseN(totalRow["ລາງວັນ SCN"]) +
-      parseN(totalRow["ໂຊກຊ້ອນໂຊກ SCN"])
+      parseN(totalRow["ໂຊກ Spin"])
     );
   }, [totalRow]);
 
@@ -643,6 +741,7 @@ export default function JdbRewardSummaryPage() {
             </div>
           </div>
         )}
+
         {/* ── Print Header ───────────────────────────────────────────────── */}
         <div className="hidden print:block mb-2">
           <div style={{display:"flex", flexDirection:"column", alignItems:"flex-start"}}>
@@ -704,17 +803,13 @@ export default function JdbRewardSummaryPage() {
                     <th className={TH}  rowSpan={2}>ລຳດັບ</th>
                     <th className={TH}  rowSpan={2}>ງວດທີ</th>
                     <th className={THG} colSpan={4}>ການຈ່າຍລາງວັນແອັບ Sokxay</th>
-                    <th className={THG} colSpan={2}>ການຈ່າຍລາງວັນແອັບ SCN</th>
                     <th className={TH}  rowSpan={2}>ອາກອນ 5%</th>
-                    <th className={TH}  rowSpan={2}>ຄ່າທຳນຽມ</th>
                   </tr>
                   <tr>
                     <th className={TH}>ລາງວັນ</th>
                     <th className={TH}>ໂຊກຊ້ອນໂຊກ</th>
                     <th className={TH}>ທຳນຽມ</th>
                     <th className={TH}>ໂຊກ Spin</th>
-                    <th className={TH}>ລາງວັນ</th>
-                    <th className={TH}>ໂຊກຊ້ອນໂຊກ</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -726,10 +821,7 @@ export default function JdbRewardSummaryPage() {
                       <td className={TD}>{row ? fmtVal(row["ໂຊກຊ້ອນໂຊກ"])     : ""}</td>
                       <td className={TD}>{row ? fmtVal(row["ທຳນຽມ"])           : ""}</td>
                       <td className={TD}>{row ? fmtVal(row["ໂຊກ Spin"])        : ""}</td>
-                      <td className={TD}>{row ? fmtVal(row["ລາງວັນ SCN"])       : ""}</td>
-                      <td className={TD}>{row ? fmtVal(row["ໂຊກຊ້ອນໂຊກ SCN"])  : ""}</td>
-                      <td className={TD}>{tx  ? fmtVal(tx.BANK_CR)              : ""}</td>
-                      <td className={TD}></td>
+                      <td className={TD}>{tx  ? fmtVal(tx.BANK_CR)             : ""}</td>
                     </tr>
                   ))}
 
@@ -741,10 +833,7 @@ export default function JdbRewardSummaryPage() {
                       <td className={TD + " bg-gray-200 font-bold"}>{fmtVal(totalRow["ໂຊກຊ້ອນໂຊກ"])}</td>
                       <td className={TD + " bg-gray-200 font-bold"}>{fmtVal(totalRow["ທຳນຽມ"])}</td>
                       <td className={TD + " bg-gray-200 font-bold"}>{fmtVal(totalRow["ໂຊກ Spin"])}</td>
-                      <td className={TD + " bg-gray-200 font-bold"}>{fmtVal(totalRow["ລາງວັນ SCN"])}</td>
-                      <td className={TD + " bg-gray-200 font-bold"}>{fmtVal(totalRow["ໂຊກຊ້ອນໂຊກ SCN"])}</td>
                       <td className={TD + " bg-gray-200 font-bold"}>{fmtVal(tax5Total)}</td>
-                      <td className={TD + " bg-gray-200"}></td>
                     </tr>
                   )}
 
@@ -754,7 +843,7 @@ export default function JdbRewardSummaryPage() {
                       <td className="px-3 py-2 text-left font-bold border border-black text-[11px] bg-blue-100" colSpan={2}>
                         ລວມຈ່າຍທັງໝົດ
                       </td>
-                      <td className="px-3 py-2 text-right font-mono font-bold border border-black text-[11px] bg-blue-100" colSpan={8}>
+                      <td className="px-3 py-2 text-right font-mono font-bold border border-black text-[11px] bg-blue-100" colSpan={5}>
                         {fmt(grandTotal)}
                       </td>
                     </tr>
@@ -766,7 +855,7 @@ export default function JdbRewardSummaryPage() {
                       <td className={TDC + " bg-yellow-50 text-slate-400 text-[9px]"}></td>
                       <td
                         className="px-2 py-1.5 text-left border border-black text-[10px] bg-yellow-50 italic text-slate-600"
-                        colSpan={8}
+                        colSpan={5}
                       >
                         <span className="font-semibold text-amber-700 mr-1">[{oth.TXN_TYPE}]</span>
                         {oth.BANK_DESCRIPTION}
@@ -791,11 +880,7 @@ export default function JdbRewardSummaryPage() {
               <div className="sig-role">( .............................................. )</div>
             </div>
             <div className="sig-box">
-              <div className="sig-line">ຜູ້ກວດສອບ</div>
-              <div className="sig-role">( .............................................. )</div>
-            </div>
-            <div className="sig-box">
-              <div className="sig-line">ຜູ້ອະນຸມັດ</div>
+              <div className="sig-line">ຜູ້ກວດ</div>
               <div className="sig-role">( .............................................. )</div>
             </div>
           </div>
