@@ -5,8 +5,9 @@ import { LDB_Reconciliation } from "@/app/LDB_reconciliation/hooks";
 import { ReconTable } from "@/components/ReconTable";
 import axios from "axios";
 import ExportButtons from "@/lib/export_data";
-import toast from "react-hot-toast";
+import { ToastContainer, toast } from 'react-toastify';
 import { getColDefs } from "@/lib/ldb_table_config";
+
 
 const ACCOUNTS = [
   { value: "0302000010005221", label: "ບັນຊີຈ່າຍ",      sub: "0302000010005221" },
@@ -64,14 +65,14 @@ export default function Page() {
     if (isSuccess) {
       searchResult.length > 0
         ? toast.success(`✅ ພົບ ${searchResult.length} ລາຍການ`)
-        : toast("ℹ️ ບໍ່ມີຂໍ້ມູນໃນຊ່ວງວັນທີເລືອກ", { icon: "ℹ️" });
+        : toast("ℹ️ ບໍ່ມີຂໍ້ມູນໃນຊ່ວງວັນທີເລືອກ");
     }
     if (isError) toast.error("❌ ເກີດຂໍ້ຜິດຜາດ: " + errorMessage);
   }, [isSuccess, isError, queryParams]);
 
   function handleSearch() {
     if (account === "") {
-      toast.error("ກະລຸນາເລືອກ account ຫນຶ່ງ");
+     toast.error("ກະລຸນາເລືອກ account ຫນຶ່ງ");
       return;
     }
     if (!canSearch) return;
@@ -86,7 +87,9 @@ export default function Page() {
   }
 
   return (
+  
     <div className="min-h-screen bg-gray-50 p-6">
+    
       <div className="mx-auto space-y-6">
 
         {/* ── Header ── */}
