@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Download, RefreshCw, Search, ChevronUp, ChevronDown, FileSpreadsheet, AlertCircle, BarChart3, Printer, X, Filter } from "lucide-react";
 import { exportDrawidExcel, type DrawRow } from "@/lib/exportExcelLib";
 import { useAuth } from "@/lib/authContext";
+import PageSkeleton from "@/components/PageSkeleton";
 import { logActivity } from "@/lib/activityService";
 
 type SortKey = keyof DrawRow;
@@ -446,14 +447,8 @@ export default function ScnLottoSellDrawidPage() {
         )}
 
         <div className="bg-white border border-black rounded-xl overflow-hidden">
-          {loadingIds ? (
-            <div className="flex items-center justify-center py-20 gap-2 text-slate-400 no-print">
-              <RefreshCw size={20} className="animate-spin" /><span className="text-sm">ກໍາລັງໂຫຼດລາຍການງວດ...</span>
-            </div>
-          ) : loadingRows ? (
-            <div className="flex items-center justify-center py-20 gap-2 text-slate-400 no-print">
-              <RefreshCw size={20} className="animate-spin" /><span className="text-sm">ກໍາລັງດຶງຂໍ້ມູນ Oracle...</span>
-            </div>
+          {loadingIds || loadingRows ? (
+            <PageSkeleton variant="flat" cols={8} rows={12} />
           ) : !hasSearched ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3 text-slate-400 no-print">
               <Search size={36} className="opacity-30" />

@@ -228,8 +228,8 @@ export default function ScnBcelRefundPage() {
               <RotateCcw size={18} className="text-blue-600" />
             </div>
             <div>
-              <h1 className="text-base font-semibold text-slate-800">ລາຍງານ BCEL Refund ຫວຍ SCN</h1>
-              <p className="text-xs text-slate-400">APP_V_SCN_BCEL_REFUND</p>
+              <h1 className="text-base font-semibold text-slate-800">ລາຍງານ BCEL Refund ຫວຍ SCN<br /> ບັນຊີ 0101100200577</h1>
+              
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -342,6 +342,7 @@ export default function ScnBcelRefundPage() {
         <div className="hidden print:block mb-2" style={{ textAlign: "center" }}>
           <h1 style={{ fontSize: "16px", fontWeight: "bold", margin: 0 }}>
             ລາຍງານ BCEL Refund ຫວຍ SCN
+            <br /> ບັນຊີ 0101100200577
           </h1>
           {filterSummary && (
             <div style={{ marginTop: "3px", fontSize: "10px", color: "#555" }}>

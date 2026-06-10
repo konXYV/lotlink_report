@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/authContext";
 import { logActivity } from "@/lib/activityService";
+import PageSkeleton from "@/components/PageSkeleton";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Types
@@ -300,11 +301,7 @@ export default function BcelStmtReportPage() {
           </div>
         )}
 
-        {loading && (
-          <div className="flex items-center justify-center py-20 gap-2 text-slate-400 bg-white border border-black rounded-xl">
-            <RefreshCw size={20} className="animate-spin" /><span className="text-sm">ກໍາລັງດຶງຂໍ້ມູນ Oracle...</span>
-          </div>
-        )}
+        {loading && <PageSkeleton variant="payout" cols={12} />}
 
         {/* ── Main report table (matches Excel layout) ─────────────────────── */}
         {hasSearched && !loading && sortedDates.length > 0 && sortedDates.map(date => {

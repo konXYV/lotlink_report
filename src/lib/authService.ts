@@ -6,8 +6,16 @@ import {
   getAuth,
 } from "firebase/auth";
 import {
-  doc, setDoc, updateDoc, getDoc, getDocs, deleteDoc,
-  collection, serverTimestamp, query, orderBy,
+  doc,
+  setDoc,
+  updateDoc,
+  getDoc,
+  getDocs,
+  deleteDoc,
+  collection,
+  serverTimestamp,
+  query,
+  orderBy,
 } from "firebase/firestore";
 import { initializeApp, deleteApp, getApps, FirebaseApp } from "firebase/app";
 import { auth, db } from "./firebase";
@@ -15,48 +23,86 @@ import { auth, db } from "./firebase";
 // ── Permission definitions ────────────────────────────────────────────────────
 
 export const ALL_PERMISSIONS = [
-  { key: "page_dashboard", label: "ເຂົ້າຫນ້າ Dashboard",      group: "ໜ້າທີ່ເຂົ້າໄດ້" },
-  { key: "page_issues",    label: "ເຂົ້າຫນ້າ ລາຍງານບັນຫາ",   group: "ໜ້າທີ່ເຂົ້າໄດ້" },
-  { key: "page_users",     label: "ເຂົ້າຫນ້າ ຈັດການ Users",   group: "ໜ້າທີ່ເຂົ້າໄດ້" },
-  { key: "issue_add",      label: "ເພີ່ມ Issue ໃໝ່",           group: "ການຈັດການຟັງຊັ່ນ" },
-  { key: "issue_edit",     label: "ແກ້ໄຂ Issue",               group: "ການຈັດການຟັງຊັ່ນ" },
-  { key: "issue_delete",   label: "ລຶບ Issue",                  group: "ການຈັດການຟັງຊັ່ນ" },
-  { key: "issue_import",   label: "Import Excel",               group: "ການຈັດການຟັງຊັ່ນ" },
-  { key: "issue_export",   label: "Export Excel",               group: "ການຈັດການຟັງຊັ່ນ" },
-  { key: "issue_print",    label: "ພິມລາຍງານ (Print)",          group: "ການຈັດການຟັງຊັ່ນ" },
-  { key: "user_manage",    label: "ສ້າງ/ແກ້ໄຂ/ລຶບ User",       group: "ການຈັດການ User" },
+  {
+    key: "page_dashboard",
+    label: "ເຂົ້າຫນ້າ Dashboard",
+    group: "ໜ້າທີ່ເຂົ້າໄດ້",
+  },
+  {
+    key: "page_issues",
+    label: "ເຂົ້າຫນ້າ ລາຍງານບັນຫາ",
+    group: "ໜ້າທີ່ເຂົ້າໄດ້",
+  },
+  {
+    key: "page_users",
+    label: "ເຂົ້າຫນ້າ ຈັດການ Users",
+    group: "ໜ້າທີ່ເຂົ້າໄດ້",
+  },
+  { key: "issue_add", label: "ເພີ່ມ Issue ໃໝ່", group: "ການຈັດການຟັງຊັ່ນ" },
+  { key: "issue_edit", label: "ແກ້ໄຂ Issue", group: "ການຈັດການຟັງຊັ່ນ" },
+  { key: "issue_delete", label: "ລຶບ Issue", group: "ການຈັດການຟັງຊັ່ນ" },
+  { key: "issue_import", label: "Import Excel", group: "ການຈັດການຟັງຊັ່ນ" },
+  { key: "issue_export", label: "Export Excel", group: "ການຈັດການຟັງຊັ່ນ" },
+  { key: "issue_print", label: "ພິມລາຍງານ (Print)", group: "ການຈັດການຟັງຊັ່ນ" },
+  { key: "user_manage", label: "ສ້າງ/ແກ້ໄຂ/ລຶບ User", group: "ການຈັດການ User" },
+  { key: "lotto_search", label: "ຄົ້ນຫາຂໍ້ມູນlotto", group: "lotto" },
+  { key: "lotto_print", label: "ພິມລາຍງານlotto", group: "lotto" },
+  { key: "lotto_export", label: "Export Excel lotto", group: "lotto" },
 ] as const;
 
-export type PermKey = typeof ALL_PERMISSIONS[number]["key"];
+export type PermKey = (typeof ALL_PERMISSIONS)[number]["key"];
 export type Permissions = Record<string, boolean>;
 
 export const DEFAULT_PERMISSIONS: Permissions = {
-  page_dashboard: false, page_issues: false, page_users: false,
-  issue_add: false, issue_edit: false, issue_delete: false,
-  issue_import: false, issue_export: false, issue_print: false, user_manage: false,
+  page_dashboard: false,
+  page_issues: false,
+  page_users: false,
+  issue_add: false,
+  issue_edit: false,
+  issue_delete: false,
+  issue_import: false,
+  issue_export: false,
+  issue_print: false,
+  user_manage: false,
+  lotto_search: false,
+  lotto_print: false,
+  lotto_export: false,
 };
 
 export const ADMIN_PERMISSIONS: Permissions = {
-  page_dashboard: true, page_issues: true, page_users: true,
-  issue_add: true, issue_edit: true, issue_delete: true,
-  issue_import: true, issue_export: true, issue_print: true, user_manage: true,
+  page_dashboard: true,
+  page_issues: true,
+  page_users: true,
+  issue_add: true,
+  issue_edit: true,
+  issue_delete: true,
+  issue_import: true,
+  issue_export: true,
+  issue_print: true,
+  user_manage: true,
+  lotto_search: true,
+  lotto_print: true,
+  lotto_export: true,
 };
 
 // ── User type ─────────────────────────────────────────────────────────────────
 
 export interface AppUser {
-  uid:         string;
-  email:       string;
+  uid: string;
+  email: string;
   displayName: string;
-  isAdmin:     boolean;
-  active:      boolean;
+  isAdmin: boolean;
+  active: boolean;
   permissions: Permissions;
-  createdAt?:  unknown;
+  createdAt?: unknown;
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
-export async function loginUser(email: string, password: string): Promise<AppUser> {
+export async function loginUser(
+  email: string,
+  password: string,
+): Promise<AppUser> {
   const cred = await signInWithEmailAndPassword(auth, email, password);
   const profile = await getUserProfile(cred.user.uid);
   if (!profile) throw new Error("User profile not found");
@@ -77,14 +123,14 @@ export async function getUserProfile(uid: string): Promise<AppUser | null> {
   const isAdmin = data.isAdmin === true || data.role === "admin";
   return {
     uid,
-    email:       data.email       ?? "",
+    email: data.email ?? "",
     displayName: data.displayName ?? "",
     isAdmin,
-    active:      data.active      ?? true,
+    active: data.active ?? true,
     permissions: isAdmin
       ? { ...ADMIN_PERMISSIONS }
       : { ...DEFAULT_PERMISSIONS, ...(data.permissions ?? {}) },
-    createdAt:   data.createdAt,
+    createdAt: data.createdAt,
   };
 }
 
@@ -95,15 +141,15 @@ export async function getAllUsers(): Promise<AppUser[]> {
     const data = d.data();
     const isAdmin = data.isAdmin === true || data.role === "admin";
     return {
-      uid:         d.id,
-      email:       data.email       ?? "",
+      uid: d.id,
+      email: data.email ?? "",
       displayName: data.displayName ?? "",
       isAdmin,
-      active:      data.active      ?? true,
+      active: data.active ?? true,
       permissions: isAdmin
         ? { ...ADMIN_PERMISSIONS }
         : { ...DEFAULT_PERMISSIONS, ...(data.permissions ?? {}) },
-      createdAt:   data.createdAt,
+      createdAt: data.createdAt,
     };
   });
 }
@@ -114,14 +160,14 @@ export async function getAllUsers(): Promise<AppUser[]> {
 // 2. ຂຽນ profile + permissions ພ້ອມກັນ (setDoc ດຽວ ດ້ວຍ admin token)
 
 export async function createUser(data: {
-  email:       string;
-  password:    string;
+  email: string;
+  password: string;
   displayName: string;
-  isAdmin:     boolean;
+  isAdmin: boolean;
   permissions: Permissions;
 }): Promise<AppUser> {
   // ດຶງ config ຈາກ main Firebase app
-  const mainApp = getApps().find(a => a.name === "[DEFAULT]");
+  const mainApp = getApps().find((a) => a.name === "[DEFAULT]");
   if (!mainApp) throw new Error("Firebase not initialized");
   const config = mainApp.options;
 
@@ -134,7 +180,9 @@ export async function createUser(data: {
     secondaryApp = initializeApp(config, secondaryName);
     const secondaryAuth = getAuth(secondaryApp);
     const cred = await createUserWithEmailAndPassword(
-      secondaryAuth, data.email, data.password
+      secondaryAuth,
+      data.email,
+      data.password,
     );
     newUid = cred.user.uid;
 
@@ -147,26 +195,25 @@ export async function createUser(data: {
     const rawPerms = data.isAdmin ? ADMIN_PERMISSIONS : data.permissions;
     // ລ້າງ key ຫວ່າງ ("") ອອກ ເພາະ Firestore ບໍ່ຍອມ empty field key
     const perms: Permissions = Object.fromEntries(
-      Object.entries(rawPerms).filter(([k]) => k && k.trim() !== "")
+      Object.entries(rawPerms).filter(([k]) => k && k.trim() !== ""),
     );
     await setDoc(doc(db, "users", newUid), {
-      email:       data.email,
+      email: data.email,
       displayName: data.displayName,
-      isAdmin:     data.isAdmin,
-      active:      true,
+      isAdmin: data.isAdmin,
+      active: true,
       permissions: perms,
-      createdAt:   serverTimestamp(),
+      createdAt: serverTimestamp(),
     });
 
     return {
-      uid:         newUid,
-      email:       data.email,
+      uid: newUid,
+      email: data.email,
       displayName: data.displayName,
-      isAdmin:     data.isAdmin,
-      active:      true,
+      isAdmin: data.isAdmin,
+      active: true,
       permissions: perms,
     };
-
   } finally {
     if (secondaryApp) {
       await deleteApp(secondaryApp).catch(() => {});
@@ -178,21 +225,31 @@ export async function createUser(data: {
 
 export async function updateUserProfile(
   uid: string,
-  data: { displayName?: string; isAdmin?: boolean; active?: boolean; permissions?: Permissions }
+  data: {
+    displayName?: string;
+    isAdmin?: boolean;
+    active?: boolean;
+    permissions?: Permissions;
+  },
 ): Promise<void> {
   const update: Record<string, unknown> = { ...data };
   if (data.isAdmin) update.permissions = ADMIN_PERMISSIONS;
   // ລ້າງ key ຫວ່າງ ("") ອອກຈາກ permissions ກ່ອນ save
   if (update.permissions && typeof update.permissions === "object") {
     update.permissions = Object.fromEntries(
-      Object.entries(update.permissions as Permissions).filter(([k]) => k && k.trim() !== "")
+      Object.entries(update.permissions as Permissions).filter(
+        ([k]) => k && k.trim() !== "",
+      ),
     );
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await updateDoc(doc(db, "users", uid), update as any);
 }
 
-export async function toggleUserActive(uid: string, active: boolean): Promise<void> {
+export async function toggleUserActive(
+  uid: string,
+  active: boolean,
+): Promise<void> {
   await updateDoc(doc(db, "users", uid), { active });
 }
 

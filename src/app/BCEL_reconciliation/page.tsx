@@ -1,8 +1,16 @@
 "use client";
 import React, { useState, useMemo } from "react";
 import {
-  RefreshCw, Search, AlertCircle, GitCompareArrows,
-  Printer, X, Filter, FileSpreadsheet, TrendingDown, TrendingUp,
+  RefreshCw,
+  Search,
+  AlertCircle,
+  GitCompareArrows,
+  Printer,
+  X,
+  Filter,
+  FileSpreadsheet,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react";
 import {
   exportBcelReconciliation,
@@ -178,15 +186,27 @@ const PRINT_CSS = `
 // ─── Column definitions ───────────────────────────────────────────────────────
 type ColKey = keyof ReconciliationRow;
 
-const COLS: { key: ColKey; label: string; align?: "left" | "right" | "center" }[] = [
+const COLS: {
+  key: ColKey;
+  label: string;
+  align?: "left" | "right" | "center";
+}[] = [
   { key: "ວັນທີ", label: "ວັນທີ", align: "center" },
   { key: "ລວມໜີ້", label: "ລວມໜີ້", align: "right" },
   { key: "ລວມມີ", label: "ລວມມີ", align: "right" },
   { key: "ລາງວັນ Sokxay", label: "ລາງວັນ Sokxay", align: "right" },
   { key: "ໂຊກຊ້ອນໂຊກ", label: "ໂຊກຊ້ອນໂຊກ", align: "right" },
-  { key: "ຄ່າທໍານຽມໂອນລາງວັນຫວຍ ໂຊກໄຊ", label: "ຄ່າທໍານຽມ ໂຊກໄຊ", align: "right" },
+  {
+    key: "ຄ່າທໍານຽມໂອນລາງວັນຫວຍ ໂຊກໄຊ",
+    label: "ຄ່າທໍານຽມ ໂຊກໄຊ",
+    align: "right",
+  },
   { key: "ວົງລໍ້ໂຊກໄຊ", label: "ວົງລໍ້ໂຊກໄຊ", align: "right" },
-  { key: "ຄ່າທໍານຽມໂອນລາງວັນ ວົງລໍ້ໂຊກໄຊ", label: "ຄ່າທໍານຽມ ວົງລໍ້", align: "right" },
+  {
+    key: "ຄ່າທໍານຽມໂອນລາງວັນ ວົງລໍ້ໂຊກໄຊ",
+    label: "ຄ່າທໍານຽມ ວົງລໍ້",
+    align: "right",
+  },
   { key: "ອາກອນລາງວັນ ໂຊກໄຊ", label: "ອາກອນ ໂຊກໄຊ", align: "right" },
   { key: "ລາງວັນ SCN", label: "ລາງວັນ SCN", align: "right" },
   { key: "ຄ່າທໍານຽມໂອນລາງວັນຫວຍ SCN", label: "ຄ່າທໍານຽມ SCN", align: "right" },
@@ -199,7 +219,7 @@ const COLS: { key: ColKey; label: string; align?: "left" | "right" | "center" }[
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const isGrandTotal = (row: ReconciliationRow) =>
-  row["ວັນທີ"] === null || row["ວັນທີ"] === "";
+  row["ວັນທີ"] == null || row["ວັນທີ"] === "";
 
 const parseN = (v: string | number | null | undefined): number => {
   if (v == null || v === "") return 0;
@@ -259,10 +279,13 @@ export default function BcelBankReconciliationPage() {
   };
 
   const handleClear = () => {
-    setDateFrom(""); setDateTo("");
-    setAppliedFrom(""); setAppliedTo("");
+    setDateFrom("");
+    setDateTo("");
+    setAppliedFrom("");
+    setAppliedTo("");
     setHasSearched(false);
-    setRows([]); setError(null);
+    setRows([]);
+    setError(null);
   };
 
   const handlePrint = () => {
@@ -298,15 +321,22 @@ export default function BcelBankReconciliationPage() {
   }, [totalRow]);
 
   const fmt = (n: number) =>
-    n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    n.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
 
   // ── Style constants ───────────────────────────────────────────────────────
-  const TH = "px-2 py-2 text-center font-bold text-slate-700 bg-blue-100 border border-black text-[10px] whitespace-nowrap";
-  const TD = "px-2 py-1.5 text-right  num border border-black text-[10px] whitespace-nowrap";
-  const TDC = "px-2 py-1.5 text-center num border border-black text-[10px] whitespace-nowrap";
-  const TDL = "px-2 py-1.5 text-left   num border border-black text-[10px] max-w-[200px] overflow-hidden text-ellipsis";
+  const TH =
+    "px-2 py-2 text-center font-bold text-slate-700 bg-blue-100 border border-black text-[10px] whitespace-nowrap";
+  const TD =
+    "px-2 py-1.5 text-right  num border border-black text-[10px] whitespace-nowrap";
+  const TDC =
+    "px-2 py-1.5 text-center num border border-black text-[10px] whitespace-nowrap";
+  const TDL =
+    "px-2 py-1.5 text-left   num border border-black text-[10px] max-w-[200px] overflow-hidden text-ellipsis";
 
-  const cellClass = (col: typeof COLS[number]) => {
+  const cellClass = (col: (typeof COLS)[number]) => {
     if (col.align === "left") return TDL;
     if (col.align === "center") return TDC;
     return TD;
@@ -316,7 +346,6 @@ export default function BcelBankReconciliationPage() {
     <>
       <style>{PRINT_CSS}</style>
       <div className="print-area flex flex-col gap-4">
-
         {/* ── Screen Header ───────────────────────────────────────────────── */}
         <div className="flex flex-wrap items-center justify-between gap-3 no-print">
           <div className="flex items-center gap-2.5">
@@ -327,7 +356,9 @@ export default function BcelBankReconciliationPage() {
               <h1 className="text-base font-semibold text-slate-800">
                 Bank Reconciliation BCEL — ບັນຊີຈ່າຍ-2201300002167
               </h1>
-              <p className="text-xs text-slate-400">Bank Reconciliation · REWARD_BCEL_STMT · ຈຳແນກຕາມວັນທີ</p>
+              <p className="text-xs text-slate-400">
+                Bank Reconciliation · REWARD_BCEL_STMT · ຈຳແນກຕາມວັນທີ
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -338,9 +369,16 @@ export default function BcelBankReconciliationPage() {
                   disabled={exporting}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40 transition"
                 >
-                  {exporting
-                    ? <><RefreshCw size={13} className="animate-spin" /> ກຳລັງ Export...</>
-                    : <><FileSpreadsheet size={13} /> Export Excel</>}
+                  {exporting ? (
+                    <>
+                      <RefreshCw size={13} className="animate-spin" /> ກຳລັງ
+                      Export...
+                    </>
+                  ) : (
+                    <>
+                      <FileSpreadsheet size={13} /> Export Excel
+                    </>
+                  )}
                 </button>
                 <button
                   onClick={handlePrint}
@@ -360,7 +398,9 @@ export default function BcelBankReconciliationPage() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-slate-500 font-medium">ວັນທີ ຈາກ</label>
+            <label className="text-xs text-slate-500 font-medium">
+              ວັນທີ ຈາກ
+            </label>
             <input
               type="date"
               value={dateFrom}
@@ -371,7 +411,9 @@ export default function BcelBankReconciliationPage() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-slate-500 font-medium">ວັນທີ ຫາ</label>
+            <label className="text-xs text-slate-500 font-medium">
+              ວັນທີ ຫາ
+            </label>
             <input
               type="date"
               value={dateTo}
@@ -387,9 +429,15 @@ export default function BcelBankReconciliationPage() {
               disabled={loading}
               className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 transition"
             >
-              {loading
-                ? <><RefreshCw size={13} className="animate-spin" /> ກຳລັງໂຫຼດ...</>
-                : <><Search size={13} /> ສະແດງຂໍ້ມູນ</>}
+              {loading ? (
+                <>
+                  <RefreshCw size={13} className="animate-spin" /> ກຳລັງໂຫຼດ...
+                </>
+              ) : (
+                <>
+                  <Search size={13} /> ສະແດງຂໍ້ມູນ
+                </>
+              )}
             </button>
             {(hasFilter || hasSearched) && (
               <button
@@ -401,7 +449,9 @@ export default function BcelBankReconciliationPage() {
             )}
             {hasSearched && (
               <span className="text-xs text-slate-500 bg-white border border-black rounded-lg px-2.5 py-2">
-                {loading ? "ກໍາລັງດຶງ..." : `${dataRows.length.toLocaleString()} ວັນ`}
+                {loading
+                  ? "ກໍາລັງດຶງ..."
+                  : `${dataRows.length.toLocaleString()} ວັນ`}
               </span>
             )}
           </div>
@@ -415,8 +465,12 @@ export default function BcelBankReconciliationPage() {
                 <TrendingDown size={16} className="text-red-600" />
               </div>
               <div>
-                <p className="text-xs text-red-500 font-medium">ລວມໜີ້ (Debit)</p>
-                <p className="text-sm font-bold text-red-700 font-mono">{fmt(stats.debit)}</p>
+                <p className="text-xs text-red-500 font-medium">
+                  ລວມໜີ້ (Debit)
+                </p>
+                <p className="text-sm font-bold text-red-700 font-mono">
+                  {fmt(stats.debit)}
+                </p>
               </div>
             </div>
             <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-3">
@@ -424,29 +478,55 @@ export default function BcelBankReconciliationPage() {
                 <TrendingUp size={16} className="text-emerald-600" />
               </div>
               <div>
-                <p className="text-xs text-emerald-500 font-medium">ລວມມີ (Credit)</p>
-                <p className="text-sm font-bold text-emerald-700 font-mono">{fmt(stats.credit)}</p>
+                <p className="text-xs text-emerald-500 font-medium">
+                  ລວມມີ (Credit)
+                </p>
+                <p className="text-sm font-bold text-emerald-700 font-mono">
+                  {fmt(stats.credit)}
+                </p>
               </div>
             </div>
-            <div className={`border rounded-xl p-3 flex items-center gap-3 ${Math.abs(stats.diff) < 0.01
-                ? "bg-slate-50 border-slate-200"
-                : "bg-amber-50 border-amber-300"
-              }`}>
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${Math.abs(stats.diff) < 0.01 ? "bg-slate-100" : "bg-amber-100"
-                }`}>
-                <GitCompareArrows size={16} className={Math.abs(stats.diff) < 0.01 ? "text-slate-500" : "text-amber-600"} />
+            <div
+              className={`border rounded-xl p-3 flex items-center gap-3 ${
+                Math.abs(stats.diff) < 0.01
+                  ? "bg-slate-50 border-slate-200"
+                  : "bg-amber-50 border-amber-300"
+              }`}
+            >
+              <div
+                className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                  Math.abs(stats.diff) < 0.01 ? "bg-slate-100" : "bg-amber-100"
+                }`}
+              >
+                <GitCompareArrows
+                  size={16}
+                  className={
+                    Math.abs(stats.diff) < 0.01
+                      ? "text-slate-500"
+                      : "text-amber-600"
+                  }
+                />
               </div>
               <div>
-                <p className={`text-xs font-medium ${Math.abs(stats.diff) < 0.01 ? "text-slate-500" : "text-amber-600"}`}>
+                <p
+                  className={`text-xs font-medium ${Math.abs(stats.diff) < 0.01 ? "text-slate-500" : "text-amber-600"}`}
+                >
                   ສ່ວນຕ່າງ (Diff)
                 </p>
-                <p className={`text-sm font-bold font-mono ${Math.abs(stats.diff) < 0.01 ? "text-slate-700" : "text-amber-700"}`}>
+                <p
+                  className={`text-sm font-bold font-mono ${Math.abs(stats.diff) < 0.01 ? "text-slate-700" : "text-amber-700"}`}
+                >
                   {fmt(stats.diff)}
                   {Math.abs(stats.diff) < 0.01 && (
                     <span
                       className="ml-1 text-xs text-emerald-600"
-                      style={{ fontFamily: "'Noto Sans Lao', 'Inter', sans-serif", fontWeight: "normal" }}
-                    >✓ ສົມດູນ</span>
+                      style={{
+                        fontFamily: "'Noto Sans Lao', 'Inter', sans-serif",
+                        fontWeight: "normal",
+                      }}
+                    >
+                      ✓ ສົມດູນ
+                    </span>
                   )}
                 </p>
               </div>
@@ -467,23 +547,55 @@ export default function BcelBankReconciliationPage() {
 
         {/* ── Print header ─────────────────────────────────────────────────── */}
         <div className="hidden print:block mb-2">
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+            }}
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/sokxay.png" alt="Logo" style={{ height: "44px", width: "auto", objectFit: "contain" }} />
-            <p style={{ fontSize: "8px", color: "#888", margin: "2px 0 0 2px" }}>
+            <img
+              src="/sokxay.png"
+              alt="Logo"
+              style={{ height: "44px", width: "auto", objectFit: "contain" }}
+            />
+            <p
+              style={{ fontSize: "8px", color: "#888", margin: "2px 0 0 2px" }}
+            >
               ພິມວັນທີ: {printTime || new Date().toLocaleString("lo-LA")}
             </p>
             {user?.displayName && (
-              <p style={{ fontSize: "9px", color: "#888", margin: "1px 0 0 2px", whiteSpace: "nowrap" }}>
+              <p
+                style={{
+                  fontSize: "9px",
+                  color: "#888",
+                  margin: "1px 0 0 2px",
+                  whiteSpace: "nowrap",
+                }}
+              >
                 ຜູ້ພິມ: {user.displayName}
               </p>
             )}
           </div>
         </div>
-        <div className="hidden print:block mb-2" style={{ textAlign: "center" }}>
-          <div style={{ fontSize: "12px", fontWeight: "bold" }}>ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ</div>
-          <div style={{ fontSize: "10px" }}>ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນາຖາວອນ</div>
-          <h1 style={{ fontSize: "13px", fontWeight: "bold", margin: "4px 0 0 0" }}>
+        <div
+          className="hidden print:block mb-2"
+          style={{ textAlign: "center" }}
+        >
+          <div style={{ fontSize: "12px", fontWeight: "bold" }}>
+            ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ
+          </div>
+          <div style={{ fontSize: "10px" }}>
+            ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນາຖາວອນ
+          </div>
+          <h1
+            style={{
+              fontSize: "13px",
+              fontWeight: "bold",
+              margin: "4px 0 0 0",
+            }}
+          >
             Bank Reconciliation BCEL (ບັນຊີຈ່າຍ) — 2201300002167
           </h1>
           {(appliedFrom || appliedTo) && (
@@ -505,7 +617,9 @@ export default function BcelBankReconciliationPage() {
               <GitCompareArrows size={36} className="opacity-30" />
               <p className="text-sm">
                 ເລືອກວັນທີ ແລ້ວກົດ{" "}
-                <span className="font-semibold text-indigo-600">ສະແດງຂໍ້ມູນ</span>
+                <span className="font-semibold text-indigo-600">
+                  ສະແດງຂໍ້ມູນ
+                </span>
               </p>
             </div>
           ) : dataRows.length === 0 ? (
@@ -520,7 +634,9 @@ export default function BcelBankReconciliationPage() {
                   <tr>
                     <th className={TH}>ລຳດັບ</th>
                     {COLS.map((c) => (
-                      <th key={String(c.key)} className={TH}>{c.label}</th>
+                      <th key={String(c.key)} className={TH}>
+                        {c.label}
+                      </th>
                     ))}
                   </tr>
                 </thead>
@@ -531,7 +647,11 @@ export default function BcelBankReconciliationPage() {
                     return (
                       <tr
                         key={i}
-                        className={hasDiff ? "bg-amber-50 hover:bg-amber-100" : "hover:bg-blue-50"}
+                        className={
+                          hasDiff
+                            ? "bg-amber-50 hover:bg-amber-100"
+                            : "hover:bg-blue-50"
+                        }
                       >
                         <td className={TDC}>{i + 1}</td>
                         {COLS.map((col) => {
@@ -540,27 +660,39 @@ export default function BcelBankReconciliationPage() {
 
                           if (col.key === "ສ່ວນຕ່າງ" && hasDiff) {
                             return (
-                              <td key={String(col.key)} className={TD + " text-amber-700 font-bold"}>
+                              <td
+                                key={String(col.key)}
+                                className={TD + " text-amber-700 font-bold"}
+                              >
                                 {display}
                               </td>
                             );
                           }
                           if (col.key === "ລວມໜີ້" && display) {
                             return (
-                              <td key={String(col.key)} className={TD + " text-red-700"}>
+                              <td
+                                key={String(col.key)}
+                                className={TD + " text-red-700"}
+                              >
                                 {display}
                               </td>
                             );
                           }
                           if (col.key === "ລວມມີ" && display) {
                             return (
-                              <td key={String(col.key)} className={TD + " text-emerald-700"}>
+                              <td
+                                key={String(col.key)}
+                                className={TD + " text-emerald-700"}
+                              >
                                 {display}
                               </td>
                             );
                           }
                           return (
-                            <td key={String(col.key)} className={cellClass(col)}>
+                            <td
+                              key={String(col.key)}
+                              className={cellClass(col)}
+                            >
                               {display ?? ""}
                             </td>
                           );
@@ -575,7 +707,10 @@ export default function BcelBankReconciliationPage() {
                       <td
                         className={TDC + " bg-gray-200 font-bold"}
                         colSpan={2}
-                        style={{ fontFamily: "'Noto Sans Lao', 'Phetsarath OT', sans-serif" }}
+                        style={{
+                          fontFamily:
+                            "'Noto Sans Lao', 'Phetsarath OT', sans-serif",
+                        }}
                       >
                         ລວມທັງໝົດ
                       </td>
@@ -585,7 +720,9 @@ export default function BcelBankReconciliationPage() {
                         return (
                           <td
                             key={String(col.key)}
-                            className={cellClass(col) + " bg-gray-200 font-bold"}
+                            className={
+                              cellClass(col) + " bg-gray-200 font-bold"
+                            }
                           >
                             {display ?? ""}
                           </td>
@@ -604,15 +741,21 @@ export default function BcelBankReconciliationPage() {
           <div className="print-signature hidden">
             <div className="sig-box">
               <div className="sig-line">ຜູ້ສ້າງ</div>
-              <div className="sig-role">( .............................................. )</div>
+              <div className="sig-role">
+                ( .............................................. )
+              </div>
             </div>
             <div className="sig-box">
               <div className="sig-line">ຜູ້ກວດສອບ</div>
-              <div className="sig-role">( .............................................. )</div>
+              <div className="sig-role">
+                ( .............................................. )
+              </div>
             </div>
             <div className="sig-box">
               <div className="sig-line">ຜູ້ອະນຸມັດ</div>
-              <div className="sig-role">( .............................................. )</div>
+              <div className="sig-role">
+                ( .............................................. )
+              </div>
             </div>
           </div>
         )}

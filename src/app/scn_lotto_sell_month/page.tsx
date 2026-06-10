@@ -3,6 +3,7 @@ import { useState, useMemo } from "react";
 import { Download, Search, ChevronUp, ChevronDown, FileSpreadsheet, AlertCircle, Calendar, Printer, X, Filter, RefreshCw } from "lucide-react";
 import { exportMonthExcel, type MonthRow } from "@/lib/exportExcelLib";
 import { useAuth } from "@/lib/authContext";
+import PageSkeleton from "@/components/PageSkeleton";
 import { logActivity } from "@/lib/activityService";
 
 type SortKey = keyof MonthRow;
@@ -383,9 +384,7 @@ export default function ScnLottoSellMonthPage() {
               <p className="text-xs opacity-60">ສາມາດເລືອກ ເດືອນເລີ່ມ–ສິ້ນສຸດ ຫຼື ຄົ້ນຫາດ້ວຍຂໍ້ຄວາມ</p>
             </div>
           ) : loading ? (
-            <div className="flex items-center justify-center py-20 gap-2 text-slate-400 no-print">
-              <RefreshCw size={20} className="animate-spin" /><span className="text-sm">ກໍາລັງດຶງຂໍ້ມູນ Oracle...</span>
-            </div>
+            <PageSkeleton variant="flat" cols={8} rows={12} />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs border-collapse">

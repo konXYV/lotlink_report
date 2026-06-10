@@ -1,4 +1,5 @@
 {
+
   // Example (Standard Edition):
   //
   // "indexes": [
@@ -46,6 +47,7 @@
   //     ]
   //   },
   // ]
+  
   "indexes": [],
   "fieldOverrides": []
 }

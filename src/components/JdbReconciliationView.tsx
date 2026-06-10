@@ -96,7 +96,7 @@ const PRINT_CSS = `
 `;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const isGrandTotal = (r: JdbReconRow) => r["ວັນທີ"] === null || r["ວັນທີ"] === "";
+const isGrandTotal = (r: JdbReconRow) => r["ວັນທີ"] == null || r["ວັນທີ"] === "";
 
 const parseN = (v: string | number | null | undefined): number => {
   if (v == null || v === "") return 0;

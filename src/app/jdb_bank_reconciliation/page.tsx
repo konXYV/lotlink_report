@@ -101,7 +101,7 @@ const PRINT_CSS = `
 `;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const isGrandTotal = (row: JdbReconRow) => row["ວັນທີ"] === null || row["ວັນທີ"] === "";
+const isGrandTotal = (row: JdbReconRow) => row["ວັນທີ"] == null || row["ວັນທີ"] === "";
 
 const parseN = (v: string | number | null | undefined): number => {
   if (v == null || v === "") return 0;

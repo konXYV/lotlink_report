@@ -5,6 +5,7 @@ import {
   AlertCircle, Gift, ChevronLeft, ChevronRight, X, Filter,
 } from "lucide-react";
 import { useAuth } from "@/lib/authContext";
+import PageSkeleton from "@/components/PageSkeleton";
 import { logActivity } from "@/lib/activityService";
 
 interface RewardRow {
@@ -316,9 +317,7 @@ export default function ScnRewardPage() {
       {/* Table */}
       <div className="bg-white border border-black rounded-xl overflow-hidden">
         {loading ? (
-          <div className="flex items-center justify-center py-20 gap-2 text-slate-400">
-            <RefreshCw size={20} className="animate-spin" /><span className="text-sm">ກໍາລັງດຶງຂໍ້ມູນ Oracle...</span>
-          </div>
+          <PageSkeleton variant="flat" cols={9} rows={12} />
         ) : !hasSearched ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-slate-400">
             <Search size={36} className="opacity-30" />

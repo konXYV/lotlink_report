@@ -27,6 +27,9 @@ export type ActivityAction =
   | "bcel_refund_search"
   | "bcel_refund_export"
   | "bcel_refund_print"
+  | "bcel_onepay_refund_search"
+  | "bcel_onepay_refund_export"
+  | "bcel_onepay_refund_print"
   | "payout_drawid_search"
   | "payout_drawid_print"
   | "payout_drawid_export";
@@ -53,6 +56,9 @@ export const ACTION_LABELS: Record<ActivityAction, string> = {
   bcel_refund_search: "ຄົ້ນຫາ BCEL Refund",
   bcel_refund_export: "Export BCEL Refund Excel",
   bcel_refund_print:  "ພິມລາຍງານ BCEL Refund",
+  bcel_onepay_refund_search: "ຄົ້ນຫາ BCEL Refund ONEPAY",
+  bcel_onepay_refund_export: "Export BCEL Refund ONEPAY Excel",
+  bcel_onepay_refund_print:  "ພິມລາຍງານ BCEL Refund ONEPAY",
   payout_drawid_search: "ຄົ້ນຫາ Payout",
   payout_drawid_print:  "ພິມລາຍງານ Payout",
   payout_drawid_export: "Export Payout Excel",
@@ -80,6 +86,9 @@ export const ACTION_COLORS: Record<ActivityAction, string> = {
   bcel_refund_search: "bg-blue-100 text-blue-700",
   bcel_refund_export: "bg-emerald-100 text-emerald-700",
   bcel_refund_print:  "bg-slate-100 text-slate-700",
+  bcel_onepay_refund_search: "bg-purple-100 text-purple-700",
+  bcel_onepay_refund_export: "bg-emerald-100 text-emerald-700",
+  bcel_onepay_refund_print:  "bg-slate-100 text-slate-700",
   payout_drawid_search: "bg-blue-100 text-blue-700",
   payout_drawid_print:  "bg-indigo-100 text-indigo-700",
   payout_drawid_export: "bg-emerald-100 text-emerald-700",
