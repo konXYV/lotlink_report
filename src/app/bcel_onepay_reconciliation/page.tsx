@@ -753,6 +753,8 @@ export default function BcelOnepayReconByDrawPage() {
                       ເຂົ້າ ບ/ຊ ຕົວຈິງ
                       <br />
                       0901300002155
+                      <br />
+                      <span className="font-normal text-[9px]">F</span>
                     </th>
                     <th className={TH} rowSpan={2}>
                       ສ່ວນຕ່າງ
@@ -770,9 +772,7 @@ export default function BcelOnepayReconByDrawPage() {
                       <span className="font-normal text-[9px] italic">A</span>
                     </th>
                     <th className={TH + " bg-blue-200"}>
-                      ຊຳລະຜ່ານ
-                      <br />
-                      ຄະແນນ
+                      ຊຳລະຜ່ານຄະແນນ
                       <br />
                       <span className="font-normal text-[9px] italic">B</span>
                     </th>

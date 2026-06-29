@@ -14,11 +14,13 @@
 //  I  = ອາກອນລາງວັນ ໂຊກໄຊ
 //  J  = ລາງວັນ SCN
 //  K  = ຄ່າທໍານຽມໂອນລາງວັນຫວຍ SCN
-//  L  = ການໂອນເງິນ - ໜີ້
-//  M  = ການໂອນເງິນ - ມີ
-//  N  = Bank Fee
-//  O  = ອື່ນໆ
-//  P  = ສ່ວນຕ່າງ
+//  L  = ໂຊກຊ້ອນໂຊກ SCN   ← ໃໝ່
+//  M  = ອາກອນ SCN         ← ໃໝ່
+//  N  = ການໂອນເງິນ - ໜີ້
+//  O  = ການໂອນເງິນ - ມີ
+//  P  = Bank Fee
+//  Q  = ອື່ນໆ
+//  R  = ສ່ວນຕ່າງ
 // ════════════════════════════════════════════════════════════════════════════
 
 import XLSXStyle, {
@@ -43,6 +45,8 @@ export interface ReconciliationRow {
   "ອາກອນລາງວັນ ໂຊກໄຊ": string;
   "ລາງວັນ SCN": string;
   "ຄ່າທໍານຽມໂອນລາງວັນຫວຍ SCN": string;
+  "ໂຊກຊ້ອນໂຊກ SCN": string; // ໃໝ່ — SCN BONUS (Dr)
+  "ອາກອນ SCN": string; // ໃໝ່ — TAX SCN LOTTERY PRIZE (Cr)
   "ການໂອນເງິນ - ໜີ້": string;
   "ການໂອນເງິນ - ມີ": string;
   "Bank Fee": string;
@@ -202,6 +206,8 @@ const HEADERS = [
   "ອາກອນ ໂຊກໄຊ",
   "ລາງວັນ SCN",
   "ຄ່າທໍານຽມ SCN",
+  "ໂຊກຊ້ອນໂຊກ SCN",
+  "ອາກອນ SCN",
   "ໂອນເງິນ-ໜີ້",
   "ໂອນເງິນ-ມີ",
   "Bank Fee",
@@ -209,7 +215,7 @@ const HEADERS = [
   "ສ່ວນຕ່າງ",
 ];
 
-const NCOLS = HEADERS.length; // 16
+const NCOLS = HEADERS.length; // 18
 
 // ── Sheet builder ──────────────────────────────────────────────────────────
 
@@ -266,6 +272,8 @@ function buildSheet(
     "ອາກອນລາງວັນ ໂຊກໄຊ",
     "ລາງວັນ SCN",
     "ຄ່າທໍານຽມໂອນລາງວັນຫວຍ SCN",
+    "ໂຊກຊ້ອນໂຊກ SCN",
+    "ອາກອນ SCN",
     "ການໂອນເງິນ - ໜີ້",
     "ການໂອນເງິນ - ມີ",
     "Bank Fee",
@@ -293,6 +301,8 @@ function buildSheet(
       parseSign(row["ອາກອນລາງວັນ ໂຊກໄຊ"]),
       parseSign(row["ລາງວັນ SCN"]),
       parseSign(row["ຄ່າທໍານຽມໂອນລາງວັນຫວຍ SCN"]),
+      parseSign(row["ໂຊກຊ້ອນໂຊກ SCN"]),
+      parseSign(row["ອາກອນ SCN"]),
       parseSign(row["ການໂອນເງິນ - ໜີ້"]),
       parseSign(row["ການໂອນເງິນ - ມີ"]),
       parseSign(row["Bank Fee"]),
@@ -300,12 +310,12 @@ function buildSheet(
 
     vals.forEach((v, ci) => S(r, 1 + ci, C(v === 0 ? "" : v, sNum())));
 
-    // O: ອື່ນໆ (text)
-    S(r, 14, C(row["ອື່ນໆ"] ?? "", sTxt()));
+    // Q: ອື່ນໆ (text)
+    S(r, 16, C(row["ອື່ນໆ"] ?? "", sTxt()));
 
-    // P: ສ່ວນຕ່າງ
+    // R: ສ່ວນຕ່າງ
     const diff = parseSign(row["ສ່ວນຕ່າງ"]);
-    S(r, 15, C(diff === 0 ? "" : diff, sNum()));
+    S(r, 17, C(diff === 0 ? "" : diff, sNum()));
 
     grandDebit += parseNum(row["ລວມໜີ້"]);
     grandCredit += parseNum(row["ລວມມີ"]);
@@ -326,14 +336,16 @@ function buildSheet(
       parseSign(totalRow["ອາກອນລາງວັນ ໂຊກໄຊ"]),
       parseSign(totalRow["ລາງວັນ SCN"]),
       parseSign(totalRow["ຄ່າທໍານຽມໂອນລາງວັນຫວຍ SCN"]),
+      parseSign(totalRow["ໂຊກຊ້ອນໂຊກ SCN"]),
+      parseSign(totalRow["ອາກອນ SCN"]),
       parseSign(totalRow["ການໂອນເງິນ - ໜີ້"]),
       parseSign(totalRow["ການໂອນເງິນ - ມີ"]),
       parseSign(totalRow["Bank Fee"]),
     ];
     tVals.forEach((v, ci) => S(rT, 1 + ci, C(v === 0 ? "" : v, sTotalNum())));
-    S(rT, 14, CE(sTotalLabel()));
+    S(rT, 16, CE(sTotalLabel()));
     const tDiff = parseSign(totalRow["ສ່ວນຕ່າງ"]);
-    S(rT, 15, C(tDiff === 0 ? "" : tDiff, sTotalNum()));
+    S(rT, 17, C(tDiff === 0 ? "" : tDiff, sTotalNum()));
 
     // ── Grand summary row ────────────────────────────────────────────────
   }
@@ -344,28 +356,30 @@ function buildSheet(
     font: { name: FONT, sz: 11 },
     alignment: { horizontal: "center" },
   };
-  S(rSig, 3, C("ຜູ້ສ້າງ", sSig));
-  S(rSig, 8, C("ຜູ້ກວດສອບ", sSig));
-  S(rSig, 13, C("ຜູ້ອະນຸມັດ", sSig));
+  S(rSig, 4, C("ຜູ້ສ້າງ", sSig));
+  S(rSig, 9, C("ຜູ້ກວດສອບ", sSig));
+  S(rSig, 14, C("ຜູ້ອະນຸມັດ", sSig));
 
   // ── Column widths ─────────────────────────────────────────────────────
   ws["!cols"] = [
-    { wch: 12 }, // A date
-    { wch: 16 }, // B ລວມໜີ້
-    { wch: 14 }, // C ລວມມີ
-    { wch: 16 }, // D ລາງວັນ Sokxay
-    { wch: 16 }, // E ໂຊກຊ້ອນໂຊກ
-    { wch: 16 }, // F ຄ່າທໍານຽມ ໂຊກໄຊ
-    { wch: 14 }, // G ວົງລໍ້
-    { wch: 16 }, // H ຄ່າທໍານຽມ ວົງລໍ້
-    { wch: 14 }, // I ອາກອນ
-    { wch: 14 }, // J ລາງວັນ SCN
-    { wch: 16 }, // K ຄ່າທໍານຽມ SCN
-    { wch: 14 }, // L ໂອນ-ໜີ້
-    { wch: 14 }, // M ໂອນ-ມີ
-    { wch: 14 }, // N Bank Fee
-    { wch: 28 }, // O ອື່ນໆ
-    { wch: 14 }, // P ສ່ວນຕ່າງ
+    { wch: 12 }, // A  date
+    { wch: 16 }, // B  ລວມໜີ້
+    { wch: 14 }, // C  ລວມມີ
+    { wch: 16 }, // D  ລາງວັນ Sokxay
+    { wch: 16 }, // E  ໂຊກຊ້ອນໂຊກ
+    { wch: 16 }, // F  ຄ່າທໍານຽມ ໂຊກໄຊ
+    { wch: 14 }, // G  ວົງລໍ້
+    { wch: 16 }, // H  ຄ່າທໍານຽມ ວົງລໍ້
+    { wch: 14 }, // I  ອາກອນ ໂຊກໄຊ
+    { wch: 14 }, // J  ລາງວັນ SCN
+    { wch: 16 }, // K  ຄ່າທໍານຽມ SCN
+    { wch: 16 }, // L  ໂຊກຊ້ອນໂຊກ SCN  ← ໃໝ່
+    { wch: 14 }, // M  ອາກອນ SCN        ← ໃໝ່
+    { wch: 14 }, // N  ໂອນ-ໜີ້
+    { wch: 14 }, // O  ໂອນ-ມີ
+    { wch: 14 }, // P  Bank Fee
+    { wch: 28 }, // Q  ອື່ນໆ
+    { wch: 14 }, // R  ສ່ວນຕ່າງ
   ];
 
   const lastDataRow = 5 + dataRows.length + (totalRow ? 2 : 1) + 4;

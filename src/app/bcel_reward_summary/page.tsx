@@ -1,10 +1,21 @@
 "use client";
 import React, { useState, useMemo } from "react";
 import {
-  RefreshCw, Search, AlertCircle, BarChart3,
-  Printer, X, Filter, FileSpreadsheet,
+  RefreshCw,
+  Search,
+  AlertCircle,
+  BarChart3,
+  Printer,
+  X,
+  Filter,
+  FileSpreadsheet,
 } from "lucide-react";
-import { exportBcelTax5, fetchTax5Rows, type BcelRow, type Tax5Row } from "@/lib/Exportbceltax5";
+import {
+  exportBcelTax5,
+  fetchTax5Rows,
+  type BcelRow,
+  type Tax5Row,
+} from "@/lib/Exportbceltax5";
 import PageSkeleton from "@/components/PageSkeleton";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -124,32 +135,33 @@ const PRINT_CSS = `
 `;
 
 const COLS: { key: keyof BcelRow; label: string }[] = [
-  { key: "ງວດ",              label: "ງວດ" },
-  { key: "ລາງວັນ",           label: "ລາງວັນ" },
-  { key: "ໂຊກຊ້ອນໂຊກ",       label: "ໂຊກຊ້ອນໂຊກ" },
-  { key: "ຄ່າທຳນຽມ",         label: "ຄ່າທຳນຽມ" },
-  { key: "ໂຊກ Spin",          label: "ໂຊກ Spin" },
-  { key: "ຄ່າທຳນຽມ_SPIN",    label: "ຄ່າທຳນຽມ SPIN" },
-  { key: "ລາງວັນ SCN",        label: "ລາງວັນ SCN" },
-  { key: "ໂຊກຊ້ອນໂຊກ SCN",   label: "ໂຊກຊ້ອນໂຊກ SCN" },
-  { key: "ຄ່າທຳນຽມ SCN",     label: "ຄ່າທຳນຽມ SCN" },
-  { key: "ອາກອນ5%",           label: "ອາກອນ 5%" },
+  { key: "ງວດ", label: "ງວດ" },
+  { key: "ລາງວັນ", label: "ລາງວັນ" },
+  { key: "ໂຊກຊ້ອນໂຊກ", label: "ໂຊກຊ້ອນໂຊກ" },
+  { key: "ຄ່າທຳນຽມ", label: "ຄ່າທຳນຽມ" },
+  { key: "ໂຊກ Spin", label: "ໂຊກ Spin" },
+  { key: "ຄ່າທຳນຽມ_SPIN", label: "ຄ່າທຳນຽມ SPIN" },
+  { key: "ລາງວັນ SCN", label: "ລາງວັນ SCN" },
+  { key: "ໂຊກຊ້ອນໂຊກ SCN", label: "ໂຊກຊ້ອນໂຊກ SCN" },
+  { key: "ຄ່າທຳນຽມ SCN", label: "ຄ່າທຳນຽມ SCN" },
+  { key: "ອາກອນ SCN 5%", label: "ອາກອນ SCN 5%" },
+  { key: "ອາກອນ5%", label: "ອາກອນ 5%" },
 ];
 
 // ─── Component ───────────────────────────────────────────────────────────────
 export default function BcelRewardSummaryPage() {
-  const [dateFrom, setDateFrom]     = useState("");
-  const [dateTo,   setDateTo]       = useState("");
-  const [rows,      setRows]      = useState<BcelRow[]>([]);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [rows, setRows] = useState<BcelRow[]>([]);
   const [tax5Items, setTax5Items] = useState<Tax5Row[]>([]);
-  const [loading,   setLoading]   = useState(false);
-  const [error,     setError]     = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [printTime, setPrintTime] = useState("");
 
   const [appliedFrom, setAppliedFrom] = useState("");
-  const [appliedTo,   setAppliedTo]   = useState("");
+  const [appliedTo, setAppliedTo] = useState("");
 
   // ── fetch from API ─────────────────────────────────────────────────────────
   const fetchData = async (from: string, to: string) => {
@@ -159,8 +171,8 @@ export default function BcelRewardSummaryPage() {
       // Query 1: main summary rows
       const qs = new URLSearchParams({ view: "bcel_reward_summary" });
       if (from) qs.set("date_from", from);
-      if (to)   qs.set("date_to",   to);
-      const res  = await fetch(`/api/oracle?${qs}`);
+      if (to) qs.set("date_to", to);
+      const res = await fetch(`/api/oracle?${qs}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "ດຶງຂໍ້ມູນລົ້ມເຫຼວ");
       setRows(Array.isArray(json.rows) ? json.rows : []);
@@ -183,10 +195,14 @@ export default function BcelRewardSummaryPage() {
   };
 
   const handleClear = () => {
-    setDateFrom(""); setDateTo("");
-    setAppliedFrom(""); setAppliedTo("");
+    setDateFrom("");
+    setDateTo("");
+    setAppliedFrom("");
+    setAppliedTo("");
     setHasSearched(false);
-    setRows([]); setTax5Items([]); setError(null);
+    setRows([]);
+    setTax5Items([]);
+    setError(null);
   };
 
   const handlePrint = () => {
@@ -205,17 +221,22 @@ export default function BcelRewardSummaryPage() {
     }
   };
 
-  const allDataRows = useMemo(() => rows.filter(r => !isTotal(r)), [rows]);
-  const totalRow    = useMemo(() => rows.find(r => isTotal(r)), [rows]);
+  const allDataRows = useMemo(() => rows.filter((r) => !isTotal(r)), [rows]);
+  const totalRow = useMemo(() => rows.find((r) => isTotal(r)), [rows]);
 
   // helper: ກວດວ່າ row ນີ້ມີຂໍ້ມູນໃດໆ ທີ່ບໍ່ເປັນ 0
   const rowHasValue = (r: BcelRow) => {
     const numCols: (keyof BcelRow)[] = [
-      "ລາງວັນ", "ໂຊກຊ້ອນໂຊກ", "ຄ່າທຳນຽມ",
-      "ໂຊກ Spin", "ຄ່າທຳນຽມ_SPIN",
-      "ລາງວັນ SCN", "ໂຊກຊ້ອນໂຊກ SCN", "ຄ່າທຳນຽມ SCN",
+      "ລາງວັນ",
+      "ໂຊກຊ້ອນໂຊກ",
+      "ຄ່າທຳນຽມ",
+      "ໂຊກ Spin",
+      "ຄ່າທຳນຽມ_SPIN",
+      "ລາງວັນ SCN",
+      "ໂຊກຊ້ອນໂຊກ SCN",
+      "ຄ່າທຳນຽມ SCN",
     ];
-    return numCols.some(k => {
+    return numCols.some((k) => {
       const v = r[k];
       const n = parseFloat(String(v ?? "0").replace(/,/g, ""));
       return !isNaN(n) && n !== 0;
@@ -227,17 +248,17 @@ export default function BcelRewardSummaryPage() {
     const maxLen = Math.max(allDataRows.length, tax5Items.length);
     return Array.from({ length: maxLen }, (_, i) => ({
       row: allDataRows[i] ?? null,
-      tx:  tax5Items[i]   ?? null,
+      tx: tax5Items[i] ?? null,
       idx: i,
     })).filter(({ row, tx }) => {
-      const hasRowVal = row ? (!!row["ງວດ"] || rowHasValue(row)) : false;
-      const hasTxVal  = tx  ? tx.BANK_CR !== 0 : false;
+      const hasRowVal = row ? !!row["ງວດ"] || rowHasValue(row) : false;
+      const hasTxVal = tx ? tx.BANK_CR !== 0 : false;
       return hasRowVal || hasTxVal;
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allDataRows, tax5Items]);
 
-  const hasData   = hasSearched && dataRows.length > 0;
+  const hasData = hasSearched && dataRows.length > 0;
   const hasFilter = dateFrom || dateTo;
 
   // ອາກອນ5% total = sum ຂອງ tax5Items ທັງໝົດ (ຄືກັນກັບ Excel)
@@ -257,30 +278,39 @@ export default function BcelRewardSummaryPage() {
       parseN(totalRow["ໂຊກຊ້ອນໂຊກ"]) +
       parseN(totalRow["ຄ່າທຳນຽມ"]) +
       parseN(totalRow["ໂຊກ Spin"]) +
-      parseN(totalRow["ຄ່າທຳນຽມ_SPIN"])
+      parseN(totalRow["ຄ່າທຳນຽມ_SPIN"]) +
+      parseN(totalRow["ລາງວັນ SCN"]) +
+      parseN(totalRow["ໂຊກຊ້ອນໂຊກ SCN"]) +
+      parseN(totalRow["ຄ່າທຳນຽມ SCN"]) 
     );
   }, [totalRow]);
 
   const fmt = (n: number) =>
-    n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    n.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
 
   // ຖ້າຄ່າເປັນ 0 ຫຼື "0.00" — ສະແດງຄ່າວ່າງ
   const fmtVal = (v: string | number | null | undefined): string => {
     if (v == null || v === "") return "";
-    const n = typeof v === "number" ? v : parseFloat(String(v).replace(/,/g, ""));
+    const n =
+      typeof v === "number" ? v : parseFloat(String(v).replace(/,/g, ""));
     if (isNaN(n) || n === 0) return "";
     return fmt(n);
   };
 
-  const TH = "px-2 py-2 text-center font-bold text-slate-700 whitespace-nowrap bg-blue-50 border border-black text-[11px]";
-  const TD = "px-2 py-1.5 text-right font-mono border border-black text-[11px] whitespace-nowrap";
-  const TDC = "px-2 py-1.5 text-center font-mono border border-black text-[11px]";
+  const TH =
+    "px-2 py-2 text-center font-bold text-slate-700 whitespace-nowrap bg-blue-50 border border-black text-[11px]";
+  const TD =
+    "px-2 py-1.5 text-right font-mono border border-black text-[11px] whitespace-nowrap";
+  const TDC =
+    "px-2 py-1.5 text-center font-mono border border-black text-[11px]";
 
   return (
     <>
       <style>{PRINT_CSS}</style>
       <div className="print-area flex flex-col gap-4">
-
         {/* ── Screen Header ─────────────────────────────────────────────── */}
         <div className="flex flex-wrap items-center justify-between gap-3 no-print">
           <div className="flex items-center gap-2.5">
@@ -291,7 +321,9 @@ export default function BcelRewardSummaryPage() {
               <h1 className="text-base font-semibold text-slate-800">
                 ສະຫຼຸບລາງວັນ BCEL — REWARD_BCEL_STMT
               </h1>
-              <p className="text-xs text-slate-400">ຕາຕາລາງສະຫຼຸບຈ່າຍລາງວັນ ຈຳແນກຕາມງວດ</p>
+              <p className="text-xs text-slate-400">
+                ຕາຕາລາງສະຫຼຸບຈ່າຍລາງວັນ ຈຳແນກຕາມງວດ
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -302,9 +334,16 @@ export default function BcelRewardSummaryPage() {
                   disabled={exporting}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40 transition"
                 >
-                  {exporting
-                    ? <><RefreshCw size={13} className="animate-spin" /> ກຳລັງ Export...</>
-                    : <><FileSpreadsheet size={13} /> Export Excel</>}
+                  {exporting ? (
+                    <>
+                      <RefreshCw size={13} className="animate-spin" /> ກຳລັງ
+                      Export...
+                    </>
+                  ) : (
+                    <>
+                      <FileSpreadsheet size={13} /> Export Excel
+                    </>
+                  )}
                 </button>
                 <button
                   onClick={handlePrint}
@@ -324,19 +363,25 @@ export default function BcelRewardSummaryPage() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-slate-500 font-medium">ວັນທີ ຈາກ (BANK_DATE)</label>
+            <label className="text-xs text-slate-500 font-medium">
+              ວັນທີ ຈາກ (BANK_DATE)
+            </label>
             <input
-              type="date" value={dateFrom}
-              onChange={e => setDateFrom(e.target.value)}
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
               className="px-3 py-2 text-sm border border-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             />
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-slate-500 font-medium">ວັນທີ ຫາ (BANK_DATE)</label>
+            <label className="text-xs text-slate-500 font-medium">
+              ວັນທີ ຫາ (BANK_DATE)
+            </label>
             <input
-              type="date" value={dateTo}
-              onChange={e => setDateTo(e.target.value)}
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
               className="px-3 py-2 text-sm border border-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             />
           </div>
@@ -347,9 +392,15 @@ export default function BcelRewardSummaryPage() {
               disabled={loading}
               className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 transition"
             >
-              {loading
-                ? <><RefreshCw size={13} className="animate-spin" /> ກຳລັງໂຫຼດ...</>
-                : <><Search size={13} /> ສະແດງຂໍ້ມູນ</>}
+              {loading ? (
+                <>
+                  <RefreshCw size={13} className="animate-spin" /> ກຳລັງໂຫຼດ...
+                </>
+              ) : (
+                <>
+                  <Search size={13} /> ສະແດງຂໍ້ມູນ
+                </>
+              )}
             </button>
             {(hasFilter || hasSearched) && (
               <button
@@ -361,7 +412,9 @@ export default function BcelRewardSummaryPage() {
             )}
             {hasSearched && (
               <span className="text-xs text-slate-500 bg-white border border-black rounded-lg px-2.5 py-2">
-                {loading ? "ກໍາລັງດຶງ..." : `${dataRows.length.toLocaleString()} ງວດ`}
+                {loading
+                  ? "ກໍາລັງດຶງ..."
+                  : `${dataRows.length.toLocaleString()} ງວດ`}
               </span>
             )}
           </div>
@@ -380,29 +433,51 @@ export default function BcelRewardSummaryPage() {
 
         {/* ── Print Header: logo + print time (top-left) ───────────────── */}
         <div className="hidden print:block mb-2">
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+            }}
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/sokxay.png"
               alt="Company Logo"
               style={{ height: "48px", width: "auto", objectFit: "contain" }}
             />
-            <p style={{ fontSize: "9px", color: "#888", margin: "2px 0 0 2px", whiteSpace: "nowrap" }}>
+            <p
+              style={{
+                fontSize: "9px",
+                color: "#888",
+                margin: "2px 0 0 2px",
+                whiteSpace: "nowrap",
+              }}
+            >
               ພິມວັນທີ: {printTime || new Date().toLocaleString("lo-LA")}
             </p>
           </div>
         </div>
 
         {/* ── Print title: centered ─────────────────────────────────────── */}
-        <div className="hidden print:block mb-2" style={{ textAlign: "center" }}>
+        <div
+          className="hidden print:block mb-2"
+          style={{ textAlign: "center" }}
+        >
           <div style={{ fontSize: "13px", fontWeight: "bold" }}>
             ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ
           </div>
           <div style={{ fontSize: "11px" }}>
             ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນາຖາວອນ
           </div>
-          <h1 style={{ fontSize: "14px", fontWeight: "bold", margin: "4px 0 0 0" }}>
-            ຕາຕາລາງສະຫຼຸບຈ່າຍລາງວັນ BCEL
+          <h1
+            style={{
+              fontSize: "14px",
+              fontWeight: "bold",
+              margin: "4px 0 0 0",
+            }}
+          >
+            ສະຫຼຸບຈ່າຍລາງວັນ BCEL
           </h1>
           {(appliedFrom || appliedTo) && (
             <div style={{ marginTop: "3px", fontSize: "10px", color: "#555" }}>
@@ -414,7 +489,7 @@ export default function BcelRewardSummaryPage() {
         {/* ── Table ─────────────────────────────────────────────────────── */}
         <div className="bg-white border border-black rounded-xl overflow-hidden">
           {loading ? (
-            <PageSkeleton variant="flat" cols={11} rows={14} />
+            <PageSkeleton variant="flat" cols={12} rows={14} />
           ) : !hasSearched ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3 text-slate-400 no-print">
               <BarChart3 size={36} className="opacity-30" />
@@ -434,8 +509,10 @@ export default function BcelRewardSummaryPage() {
                 <thead>
                   <tr>
                     <th className={TH}>ລຳດັບ</th>
-                    {COLS.map(c => (
-                      <th key={c.key} className={TH}>{c.label}</th>
+                    {COLS.map((c) => (
+                      <th key={c.key} className={TH}>
+                        {c.label}
+                      </th>
                     ))}
                   </tr>
                 </thead>
@@ -443,32 +520,77 @@ export default function BcelRewardSummaryPage() {
                   {dataRows.map(({ row, tx }, i) => (
                     <tr key={i} className="hover:bg-blue-50">
                       <td className={TDC}>{i + 1}</td>
-                      <td className={TDC + " text-blue-700 font-semibold"}>{row?.["ງວດ"] ?? ""}</td>
-                      <td className={TD}>{row ? fmtVal(row["ລາງວັນ"])          : ""}</td>
-                      <td className={TD}>{row ? fmtVal(row["ໂຊກຊ້ອນໂຊກ"])      : ""}</td>
-                      <td className={TD}>{row ? fmtVal(row["ຄ່າທຳນຽມ"])        : ""}</td>
-                      <td className={TD}>{row ? fmtVal(row["ໂຊກ Spin"])         : ""}</td>
-                      <td className={TD}>{row ? fmtVal(row["ຄ່າທຳນຽມ_SPIN"])   : ""}</td>
-                      <td className={TD}>{row ? fmtVal(row["ລາງວັນ SCN"])       : ""}</td>
-                      <td className={TD}>{row ? fmtVal(row["ໂຊກຊ້ອນໂຊກ SCN"])  : ""}</td>
-                      <td className={TD}>{row ? fmtVal(row["ຄ່າທຳນຽມ SCN"])    : ""}</td>
-                      <td className={TD}>{tx  ? fmtVal(tx.BANK_CR)              : ""}</td>
+                      <td className={TDC + " text-blue-700 font-semibold"}>
+                        {row?.["ງວດ"] ?? ""}
+                      </td>
+                      <td className={TD}>{row ? fmtVal(row["ລາງວັນ"]) : ""}</td>
+                      <td className={TD}>
+                        {row ? fmtVal(row["ໂຊກຊ້ອນໂຊກ"]) : ""}
+                      </td>
+                      <td className={TD}>
+                        {row ? fmtVal(row["ຄ່າທຳນຽມ"]) : ""}
+                      </td>
+                      <td className={TD}>
+                        {row ? fmtVal(row["ໂຊກ Spin"]) : ""}
+                      </td>
+                      <td className={TD}>
+                        {row ? fmtVal(row["ຄ່າທຳນຽມ_SPIN"]) : ""}
+                      </td>
+                      <td className={TD}>
+                        {row ? fmtVal(row["ລາງວັນ SCN"]) : ""}
+                      </td>
+                      <td className={TD}>
+                        {row ? fmtVal(row["ໂຊກຊ້ອນໂຊກ SCN"]) : ""}
+                      </td>
+                      <td className={TD}>
+                        {row ? fmtVal(row["ຄ່າທຳນຽມ SCN"]) : ""}
+                      </td>
+                      <td className={TD}>
+                        {row ? fmtVal(row["ອາກອນ SCN 5%"]) : ""}
+                      </td>
+                      <td className={TD}>{tx ? fmtVal(tx.BANK_CR) : ""}</td>
                     </tr>
                   ))}
 
                   {/* Grand total row — ລວມແຕ່ລະຖັນ */}
                   {totalRow && (
                     <tr className="total-row bg-gray-200 font-bold">
-                      <td className={TDC + " bg-gray-200 font-bold"} colSpan={2}>ລວມທັງໝົດ</td>
-                      <td className={TD + " bg-gray-200 font-bold"}>{fmtVal(totalRow["ລາງວັນ"])}</td>
-                      <td className={TD + " bg-gray-200 font-bold"}>{fmtVal(totalRow["ໂຊກຊ້ອນໂຊກ"])}</td>
-                      <td className={TD + " bg-gray-200 font-bold"}>{fmtVal(totalRow["ຄ່າທຳນຽມ"])}</td>
-                      <td className={TD + " bg-gray-200 font-bold"}>{fmtVal(totalRow["ໂຊກ Spin"])}</td>
-                      <td className={TD + " bg-gray-200 font-bold"}>{fmtVal(totalRow["ຄ່າທຳນຽມ_SPIN"])}</td>
-                      <td className={TD + " bg-gray-200 font-bold"}>{fmtVal(totalRow["ລາງວັນ SCN"])}</td>
-                      <td className={TD + " bg-gray-200 font-bold"}>{fmtVal(totalRow["ໂຊກຊ້ອນໂຊກ SCN"])}</td>
-                      <td className={TD + " bg-gray-200 font-bold"}>{fmtVal(totalRow["ຄ່າທຳນຽມ SCN"])}</td>
-                      <td className={TD + " bg-gray-200 font-bold"}>{fmtVal(tax5Total)}</td>
+                      <td
+                        className={TDC + " bg-gray-200 font-bold"}
+                        colSpan={2}
+                      >
+                        ລວມທັງໝົດ
+                      </td>
+                      <td className={TD + " bg-gray-200 font-bold"}>
+                        {fmtVal(totalRow["ລາງວັນ"])}
+                      </td>
+                      <td className={TD + " bg-gray-200 font-bold"}>
+                        {fmtVal(totalRow["ໂຊກຊ້ອນໂຊກ"])}
+                      </td>
+                      <td className={TD + " bg-gray-200 font-bold"}>
+                        {fmtVal(totalRow["ຄ່າທຳນຽມ"])}
+                      </td>
+                      <td className={TD + " bg-gray-200 font-bold"}>
+                        {fmtVal(totalRow["ໂຊກ Spin"])}
+                      </td>
+                      <td className={TD + " bg-gray-200 font-bold"}>
+                        {fmtVal(totalRow["ຄ່າທຳນຽມ_SPIN"])}
+                      </td>
+                      <td className={TD + " bg-gray-200 font-bold"}>
+                        {fmtVal(totalRow["ລາງວັນ SCN"])}
+                      </td>
+                      <td className={TD + " bg-gray-200 font-bold"}>
+                        {fmtVal(totalRow["ໂຊກຊ້ອນໂຊກ SCN"])}
+                      </td>
+                      <td className={TD + " bg-gray-200 font-bold"}>
+                        {fmtVal(totalRow["ຄ່າທຳນຽມ SCN"])}
+                      </td>
+                      <td className={TD + " bg-gray-200 font-bold"}>
+                        {fmtVal(totalRow["ອາກອນ SCN 5%"])}
+                      </td>
+                      <td className={TD + " bg-gray-200 font-bold"}>
+                        {fmtVal(tax5Total)}
+                      </td>
                     </tr>
                   )}
 
@@ -500,15 +622,21 @@ export default function BcelRewardSummaryPage() {
           <div className="print-signature hidden">
             <div className="sig-box">
               <div className="sig-line">ຜູ້ສະຫຼຸບ</div>
-              <div className="sig-role">( .............................................. )</div>
+              <div className="sig-role">
+                ( .............................................. )
+              </div>
             </div>
             <div className="sig-box">
               <div className="sig-line">ຜູ້ກວດສອບ</div>
-              <div className="sig-role">( .............................................. )</div>
+              <div className="sig-role">
+                ( .............................................. )
+              </div>
             </div>
             <div className="sig-box">
               <div className="sig-line">ຜູ້ອະນຸມັດ</div>
-              <div className="sig-role">( .............................................. )</div>
+              <div className="sig-role">
+                ( .............................................. )
+              </div>
             </div>
           </div>
         )}

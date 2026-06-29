@@ -122,23 +122,25 @@ const PRINT_CSS = `
     }
 
     /* Limit number columns so table fits within A4 landscape 277mm */
-    td:nth-child(1), th:nth-child(1) { max-width: 14mm; } /* ລຳດັບ */
-    td:nth-child(2), th:nth-child(2) { max-width: 16mm; } /* ວັນທີ */
-    td:nth-child(3), th:nth-child(3) { max-width: 16mm; } /* ລວມໜີ້ */
-    td:nth-child(4), th:nth-child(4) { max-width: 16mm; } /* ລວມມີ */
-    td:nth-child(5), th:nth-child(5) { max-width: 16mm; } /* Sokxay */
-    td:nth-child(6), th:nth-child(6) { max-width: 13mm; } /* ໂຊກຊ້ອນ */
-    td:nth-child(7), th:nth-child(7) { max-width: 13mm; } /* ຄ່າທໍານຽມ ໂຊກໄຊ */
-    td:nth-child(8), th:nth-child(8) { max-width: 13mm; } /* ວົງລໍ້ */
-    td:nth-child(9), th:nth-child(9) { max-width: 13mm; } /* ຄ່າທໍານຽມ ວົງລໍ້ */
-    td:nth-child(10),th:nth-child(10){ max-width: 13mm; } /* ອາກອນ */
-    td:nth-child(11),th:nth-child(11){ max-width: 13mm; } /* SCN */
-    td:nth-child(12),th:nth-child(12){ max-width: 13mm; } /* ຄ່າທໍານຽມ SCN */
-    td:nth-child(13),th:nth-child(13){ max-width: 13mm; } /* ໂອນ-ໜີ້ */
-    td:nth-child(14),th:nth-child(14){ max-width: 13mm; } /* ໂອນ-ມີ */
-    td:nth-child(15),th:nth-child(15){ max-width: 12mm; } /* Bank Fee */
-    td:nth-child(16),th:nth-child(16){ max-width: 16mm; } /* ອື່ນໆ */
-    td:nth-child(17),th:nth-child(17){ max-width: 13mm; } /* ສ່ວນຕ່າງ */
+    td:nth-child(1),  th:nth-child(1)  { max-width: 10mm; } /* ລຳດັບ */
+    td:nth-child(2),  th:nth-child(2)  { max-width: 14mm; } /* ວັນທີ */
+    td:nth-child(3),  th:nth-child(3)  { max-width: 14mm; } /* ລວມໜີ້ */
+    td:nth-child(4),  th:nth-child(4)  { max-width: 14mm; } /* ລວມມີ */
+    td:nth-child(5),  th:nth-child(5)  { max-width: 14mm; } /* Sokxay */
+    td:nth-child(6),  th:nth-child(6)  { max-width: 11mm; } /* ໂຊກຊ້ອນໂຊກ */
+    td:nth-child(7),  th:nth-child(7)  { max-width: 11mm; } /* ຄ່າທໍານຽມ ໂຊກໄຊ */
+    td:nth-child(8),  th:nth-child(8)  { max-width: 11mm; } /* ວົງລໍ້ */
+    td:nth-child(9),  th:nth-child(9)  { max-width: 11mm; } /* ຄ່າທໍານຽມ ວົງລໍ້ */
+    td:nth-child(10), th:nth-child(10) { max-width: 11mm; } /* ອາກອນ ໂຊກໄຊ */
+    td:nth-child(11), th:nth-child(11) { max-width: 11mm; } /* SCN */
+    td:nth-child(12), th:nth-child(12) { max-width: 11mm; } /* ຄ່າທໍານຽມ SCN */
+    td:nth-child(13), th:nth-child(13) { max-width: 11mm; } /* ໂຊກຊ້ອນໂຊກ SCN */
+    td:nth-child(14), th:nth-child(14) { max-width: 11mm; } /* ອາກອນ SCN */
+    td:nth-child(15), th:nth-child(15) { max-width: 11mm; } /* ໂອນ-ໜີ້ */
+    td:nth-child(16), th:nth-child(16) { max-width: 11mm; } /* ໂອນ-ມີ */
+    td:nth-child(17), th:nth-child(17) { max-width: 11mm; } /* Bank Fee */
+    td:nth-child(18), th:nth-child(18) { max-width: 14mm; } /* ອື່ນໆ */
+    td:nth-child(19), th:nth-child(19) { max-width: 11mm; } /* ສ່ວນຕ່າງ */
 
     thead tr th,
     thead th {
@@ -210,6 +212,10 @@ const COLS: {
   { key: "ອາກອນລາງວັນ ໂຊກໄຊ", label: "ອາກອນ ໂຊກໄຊ", align: "right" },
   { key: "ລາງວັນ SCN", label: "ລາງວັນ SCN", align: "right" },
   { key: "ຄ່າທໍານຽມໂອນລາງວັນຫວຍ SCN", label: "ຄ່າທໍານຽມ SCN", align: "right" },
+  // ── ໃໝ່ ──
+  { key: "ໂຊກຊ້ອນໂຊກ SCN", label: "ໂຊກຊ້ອນໂຊກ SCN", align: "right" },
+  { key: "ອາກອນ SCN", label: "ອາກອນ SCN", align: "right" },
+  // ── ──────
   { key: "ການໂອນເງິນ - ໜີ້", label: "ໂອນ-ໜີ້", align: "right" },
   { key: "ການໂອນເງິນ - ມີ", label: "ໂອນ-ມີ", align: "right" },
   { key: "Bank Fee", label: "Bank Fee", align: "right" },

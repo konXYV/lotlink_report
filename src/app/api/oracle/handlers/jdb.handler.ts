@@ -6,9 +6,12 @@ type Conn = any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type OPT = any;
 
-function buildJdbDateBinds(params: URLSearchParams, acctKey: keyof typeof ACCOUNTS = "JDB") {
+function buildJdbDateBinds(
+  params: URLSearchParams,
+  acctKey: keyof typeof ACCOUNTS = "JDB",
+) {
   const dateFrom = params.get("date_from") ?? "";
-  const dateTo   = params.get("date_to")   ?? "";
+  const dateTo = params.get("date_to") ?? "";
   const conditions: string[] = [`BANK_ACCT = :jdbAcct`];
   const binds: Record<string, string> = { jdbAcct: ACCOUNTS[acctKey] };
   if (dateFrom) {
@@ -24,7 +27,11 @@ function buildJdbDateBinds(params: URLSearchParams, acctKey: keyof typeof ACCOUN
   return { conditions, binds };
 }
 
-export async function handleJdbRewardSummary(conn: Conn, OPT_OBJ: OPT, params: URLSearchParams) {
+export async function handleJdbRewardSummary(
+  conn: Conn,
+  OPT_OBJ: OPT,
+  params: URLSearchParams,
+) {
   const { conditions, binds } = buildJdbDateBinds(params);
   const whereClause = `WHERE ${conditions.join(" AND ")}`;
   const sql = `
@@ -41,10 +48,24 @@ export async function handleJdbRewardSummary(conn: Conn, OPT_OBJ: OPT, params: U
     ORDER BY GROUPING(DRAWID), DRAWID`;
   const result = await conn.execute(sql, binds, OPT_OBJ);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return NextResponse.json({ rows: (result.rows ?? []).map((r: any) => ({ ງວດ: r["ງວດ"] ?? "", "ລາງວັນ Sokxay": r["ລາງວັນ Sokxay"] ?? "0", ທຳນຽມ: r["ທຳນຽມ"] ?? "0", ໂຊກຊ້ອນໂຊກ: r["ໂຊກຊ້ອນໂຊກ"] ?? "0", "ໂຊກ Spin": r["ໂຊກ Spin"] ?? "0", "ລາງວັນ SCN": r["ລາງວັນ SCN"] ?? "0", "ໂຊກຊ້ອນໂຊກ SCN": r["ໂຊກຊ້ອນໂຊກ SCN"] ?? "0" })) });
+  return NextResponse.json({
+    rows: (result.rows ?? []).map((r: any) => ({
+      ງວດ: r["ງວດ"] ?? "",
+      "ລາງວັນ Sokxay": r["ລາງວັນ Sokxay"] ?? "0",
+      ທຳນຽມ: r["ທຳນຽມ"] ?? "0",
+      ໂຊກຊ້ອນໂຊກ: r["ໂຊກຊ້ອນໂຊກ"] ?? "0",
+      "ໂຊກ Spin": r["ໂຊກ Spin"] ?? "0",
+      "ລາງວັນ SCN": r["ລາງວັນ SCN"] ?? "0",
+      "ໂຊກຊ້ອນໂຊກ SCN": r["ໂຊກຊ້ອນໂຊກ SCN"] ?? "0",
+    })),
+  });
 }
 
-export async function handleJdbTax5Items(conn: Conn, OPT_OBJ: OPT, params: URLSearchParams) {
+export async function handleJdbTax5Items(
+  conn: Conn,
+  OPT_OBJ: OPT,
+  params: URLSearchParams,
+) {
   const { conditions, binds } = buildJdbDateBinds(params);
   conditions.push(`TXN_TYPE = 'SPLUS_PRICE_TAX'`);
   const sql = `
@@ -54,10 +75,20 @@ export async function handleJdbTax5Items(conn: Conn, OPT_OBJ: OPT, params: URLSe
     ORDER BY BANK_TXN_DATE ASC, BANK_CR DESC`;
   const result = await conn.execute(sql, binds, OPT_OBJ);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return NextResponse.json({ rows: (result.rows ?? []).map((r: any) => ({ BANK_DATE: r.BANK_DATE ?? "", DRAWID: r.DRAWID ?? "", BANK_CR: Number(r.BANK_CR ?? 0) })) });
+  return NextResponse.json({
+    rows: (result.rows ?? []).map((r: any) => ({
+      BANK_DATE: r.BANK_DATE ?? "",
+      DRAWID: r.DRAWID ?? "",
+      BANK_CR: Number(r.BANK_CR ?? 0),
+    })),
+  });
 }
 
-export async function handleJdbOtherItems(conn: Conn, OPT_OBJ: OPT, params: URLSearchParams) {
+export async function handleJdbOtherItems(
+  conn: Conn,
+  OPT_OBJ: OPT,
+  params: URLSearchParams,
+) {
   const { conditions, binds } = buildJdbDateBinds(params);
   const knownTypes = `'SPLUS_PRICE','FEE_SPLUS_PRICE','SPLUS_PRO','SPLUS_SPIN','SCN_PRICE','SCN_PRO','SPLUS_PRICE_TAX'`;
   conditions.push(`TXN_TYPE NOT IN (${knownTypes})`);
@@ -68,17 +99,31 @@ export async function handleJdbOtherItems(conn: Conn, OPT_OBJ: OPT, params: URLS
     ORDER BY BANK_TXN_DATE ASC, TXN_TYPE, BANK_DESCRIPTION`;
   const result = await conn.execute(sql, binds, OPT_OBJ);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return NextResponse.json({ rows: (result.rows ?? []).map((r: any) => ({ BANK_DATE: r.BANK_DATE ?? "", TXN_TYPE: r.TXN_TYPE ?? "", BANK_DESCRIPTION: r.BANK_DESCRIPTION ?? "", BANK_DR: Number(r.BANK_DR ?? 0) })) });
+  return NextResponse.json({
+    rows: (result.rows ?? []).map((r: any) => ({
+      BANK_DATE: r.BANK_DATE ?? "",
+      TXN_TYPE: r.TXN_TYPE ?? "",
+      BANK_DESCRIPTION: r.BANK_DESCRIPTION ?? "",
+      BANK_DR: Number(r.BANK_DR ?? 0),
+    })),
+  });
 }
 
-export async function handleJdbBankReconciliation(conn: Conn, OPT_OBJ: OPT, params: URLSearchParams) {
+export async function handleJdbBankReconciliation(
+  conn: Conn,
+  OPT_OBJ: OPT,
+  params: URLSearchParams,
+) {
   const acctParam = params.get("acct") ?? ACCOUNTS.JDB;
-  const dateFrom  = params.get("date_from") ?? "";
-  const dateTo    = params.get("date_to")   ?? "";
+  const dateFrom = params.get("date_from") ?? "";
+  const dateTo = params.get("date_to") ?? "";
 
   const conditions: string[] = [`BANK_ACCT = :acct`];
   const binds: Record<string, string> = { acct: acctParam };
-  if (dateFrom) { conditions.push("TRUNC(BANK_TXN_DATE) >= TO_DATE(:dateFrom, 'YYYY-MM-DD')"); binds.dateFrom = dateFrom; }
+  if (dateFrom) {
+    conditions.push("TRUNC(BANK_TXN_DATE) >= TO_DATE(:dateFrom, 'YYYY-MM-DD')");
+    binds.dateFrom = dateFrom;
+  }
   if (dateTo) {
     const dt = new Date(dateTo);
     dt.setDate(dt.getDate() + 1);
@@ -86,7 +131,7 @@ export async function handleJdbBankReconciliation(conn: Conn, OPT_OBJ: OPT, para
     binds.dateTo = dt.toISOString().slice(0, 10);
   }
 
-  const mainWhere  = `WHERE ${conditions.join(" AND ")}`;
+  const mainWhere = `WHERE ${conditions.join(" AND ")}`;
   const knownTypes = `'SPLUS_PRICE','FEE_SPLUS_PRICE','SPLUS_PRO','SPLUS_REFUND','FEE_SPLUS_REFUND','LOTTO_SELL','TRANSFER','ATT','IBANK_FEE','FTR_FEE','TRANSFER FEE','FEE_JDB_LOTTO_SETTL','SAVING_INTEREST','SPLUS_PRICE_TAX'`;
 
   const sqlMain = `
@@ -144,14 +189,14 @@ export async function handleJdbBankReconciliation(conn: Conn, OPT_OBJ: OPT, para
     ORDER BY TRUNC(BANK_TXN_DATE), TXN_TYPE`;
 
   const [mainRes, othersRes] = await Promise.all([
-    conn.execute(sqlMain,   binds, OPT_OBJ),
+    conn.execute(sqlMain, binds, OPT_OBJ),
     conn.execute(sqlOthers, binds, OPT_OBJ),
   ]);
 
   const othersMap: Record<string, string> = {};
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (othersRes.rows ?? []).forEach((o: any) => {
-    const bd  = String(o.BD ?? "");
+    const bd = String(o.BD ?? "");
     const txt = `${o.TXN_TYPE} (${o.DIRECTION}): ${Number(o.AMT).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
     othersMap[bd] = othersMap[bd] ? `${othersMap[bd]} | ${txt}` : txt;
   });
@@ -159,37 +204,57 @@ export async function handleJdbBankReconciliation(conn: Conn, OPT_OBJ: OPT, para
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows = (mainRes.rows ?? []).map((r: any) => ({
     ວັນທີ: r["ວັນທີ"] ?? null,
-    ລວມໜີ້: r["ລວມໜີ້"] ?? "0.00", ລວມມີ: r["ລວມມີ"] ?? "0.00",
-    SPLUS_PRICE: r["SPLUS_PRICE"] ?? "0.00", FEE_SPLUS_PRICE: r["FEE_SPLUS_PRICE"] ?? "0.00",
-    SPLUS_PRO: r["SPLUS_PRO"] ?? "0.00", SPLUS_REFUND: r["SPLUS_REFUND"] ?? "0.00",
-    FEE_SPLUS_REFUND: r["FEE_SPLUS_REFUND"] ?? "0.00", LOTTO_SELL: r["LOTTO_SELL"] ?? "0.00",
-    TRANSFER: r["TRANSFER"] ?? "0.00", TRANSFER_CR: r["TRANSFER_CR"] ?? "0.00",
-    ATT: r["ATT"] ?? "0.00", IBANK_FEE: r["IBANK_FEE"] ?? "0.00",
-    FTR_FEE: r["FTR_FEE"] ?? "0.00", TRANSFER_FEE: r["TRANSFER_FEE"] ?? "0.00",
+    ລວມໜີ້: r["ລວມໜີ້"] ?? "0.00",
+    ລວມມີ: r["ລວມມີ"] ?? "0.00",
+    SPLUS_PRICE: r["SPLUS_PRICE"] ?? "0.00",
+    FEE_SPLUS_PRICE: r["FEE_SPLUS_PRICE"] ?? "0.00",
+    SPLUS_PRO: r["SPLUS_PRO"] ?? "0.00",
+    SPLUS_REFUND: r["SPLUS_REFUND"] ?? "0.00",
+    FEE_SPLUS_REFUND: r["FEE_SPLUS_REFUND"] ?? "0.00",
+    LOTTO_SELL: r["LOTTO_SELL"] ?? "0.00",
+    TRANSFER: r["TRANSFER"] ?? "0.00",
+    TRANSFER_CR: r["TRANSFER_CR"] ?? "0.00",
+    ATT: r["ATT"] ?? "0.00",
+    IBANK_FEE: r["IBANK_FEE"] ?? "0.00",
+    FTR_FEE: r["FTR_FEE"] ?? "0.00",
+    TRANSFER_FEE: r["TRANSFER_FEE"] ?? "0.00",
     FEE_JDB_LOTTO_SETTL: r["FEE_JDB_LOTTO_SETTL"] ?? "0.00",
-    SAVING_INTEREST: r["SAVING_INTEREST"] ?? "0.00", SPLUS_PRICE_TAX: r["SPLUS_PRICE_TAX"] ?? "0.00",
+    SAVING_INTEREST: r["SAVING_INTEREST"] ?? "0.00",
+    SPLUS_PRICE_TAX: r["SPLUS_PRICE_TAX"] ?? "0.00",
     ອື່ນໆ: r["ວັນທີ"] ? (othersMap[r["ວັນທີ"]] ?? null) : null,
     ສ່ວນຕ່າງ: r["ສ່ວນຕ່າງ"] ?? "0.00",
   }));
   return NextResponse.json({ rows });
 }
 
-export async function handleJdbSellReconciliation(conn: Conn, OPT_OBJ: OPT, params: URLSearchParams) {
+export async function handleJdbSellReconciliation(
+  conn: Conn,
+  OPT_OBJ: OPT,
+  params: URLSearchParams,
+) {
   const drawFrom = params.get("draw_from") ?? "";
-  const drawTo   = params.get("draw_to")   ?? "";
+  const drawTo = params.get("draw_to") ?? "";
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const binds: Record<string, any> = {
     p_acct: ACCOUNTS.JDB_3180,
     p_txn_sell: "LOTTO_SELL",
     p_txn_refund: "SPLUS_REFUND",
-    p_payby: "JDB",
+    p_dealerid: "080821001APP",
   };
 
   const drawClauses: string[] = [];
-  if (drawFrom) { drawClauses.push("TO_CHAR(a.DRAWID) >= TO_CHAR(:p_draw_from)"); binds.p_draw_from = drawFrom; }
-  if (drawTo)   { drawClauses.push("TO_CHAR(a.DRAWID) <= TO_CHAR(:p_draw_to)");   binds.p_draw_to   = drawTo;   }
-  const drawWhere = drawClauses.length ? "AND " + drawClauses.join(" AND ") : "";
+  if (drawFrom) {
+    drawClauses.push("TO_CHAR(a.DRAWID) >= TO_CHAR(:p_draw_from)");
+    binds.p_draw_from = drawFrom;
+  }
+  if (drawTo) {
+    drawClauses.push("TO_CHAR(a.DRAWID) <= TO_CHAR(:p_draw_to)");
+    binds.p_draw_to = drawTo;
+  }
+  const drawWhere = drawClauses.length
+    ? "AND " + drawClauses.join(" AND ")
+    : "";
 
   const sql = `
     SELECT q.*, (q.REAL_STMT - q.AFTERDISCOUNT - q.REFUND_AMOUNT) AS DIFF
@@ -203,10 +268,11 @@ export async function handleJdbSellReconciliation(conn: Conn, OPT_OBJ: OPT, para
         (NVL(b.TOTAL_BANK_CR, 0) - NVL(r.TOTAL_REFUND, 0)) * 0.99 AS AFTER_DISCUS_ALL,
         NVL(b.TOTAL_BANK_CR, 0)                                     AS REAL_STMT
       FROM (
-        SELECT a.DRAWID, MAX(a.DRAWDATE) AS DRAWDATE,
-               SUM(CASE WHEN a.STATUS = 'DONE' THEN a.AMOUNT ELSE 0 END) AS A_YODKHAI
-        FROM LOTTERYORDER@SPLUS_2026_DB a
-        WHERE a.PAYBY = :p_payby
+        SELECT a.DRAWID, MAX(a.DRAW_DATE) AS DRAWDATE,
+               SUM(a.TOTALSALE) AS A_YODKHAI
+        FROM LOTLINK_BILL a
+        WHERE a.DEALERID = :p_dealerid
+          AND LENGTH(a.CLIENTREFNO) < 25
           AND EXISTS (
             SELECT 1 FROM ${VIEWS.JDB_STMT} s
             WHERE s.BANK_ACCT = :p_acct AND s.TXN_TYPE = :p_txn_sell
@@ -234,9 +300,12 @@ export async function handleJdbSellReconciliation(conn: Conn, OPT_OBJ: OPT, para
   const result = await conn.execute(sql, binds, OPT_OBJ);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows = (result.rows ?? []).map((r: any) => ({
-    DRAWDATE: r.DRAWDATE != null
-      ? (r.DRAWDATE instanceof Date ? r.DRAWDATE.toLocaleDateString("en-GB") : String(r.DRAWDATE))
-      : null,
+    DRAWDATE:
+      r.DRAWDATE != null
+        ? r.DRAWDATE instanceof Date
+          ? r.DRAWDATE.toLocaleDateString("en-GB")
+          : String(r.DRAWDATE)
+        : null,
     DRAWID: r.DRAWID != null ? String(r.DRAWID) : "",
     A_YODKHAI: r.A_YODKHAI ?? "0.00",
     DISCUSPOINT: r.DISCUSPOINT ?? "0.00",
