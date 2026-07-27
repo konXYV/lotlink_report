@@ -362,7 +362,7 @@ export default function JdbSellReconPage() {
                 ລາຍງານສົມທຽບ ຍອດຂາຍຫວຍ ຜ່ານ APP SOKXAY ທີ່ ຊຳລະຜ່ານ JDB
               </h1>
               <p className="text-xs text-slate-400">
-                JDB Sell Reconciliation · LOTTERYORDER × JDB_STMT · ຈຳແນກຕາມງວດ
+                JDB Sell Reconciliation · LOTLINK_BILL × JDB_STMT · ຈຳແນກຕາມງວດ
               </p>
             </div>
           </div>
@@ -621,7 +621,7 @@ export default function JdbSellReconPage() {
                     <th className={TH + " bg-blue-100"} rowSpan={2}>
                       ສ່ວນຕ່າງ
                       <br />
-                      <span className="font-normal text-[8px]">I=G-D-C</span>
+                      <span className="font-normal text-[8px]">I=G-D</span>
                     </th>
                     {/* ໝາຍເຫດ */}
                     <th className={TH + " col-remark bg-yellow-50"} rowSpan={2}>
@@ -652,9 +652,9 @@ export default function JdbSellReconPage() {
                       "C",
                       "D=A-B-C",
                       "E=D×1%",
-                      "F=D×99%",
+                      "F=D-E",
                       "G",
-                      "I=G-D-C",
+                      "I=G-D",
                       "",
                     ].map((lbl, ci) => (
                       <td
@@ -788,7 +788,7 @@ export default function JdbSellReconPage() {
           )}
         </div>
 
-        {/* ── Footer note ───────────────────────────────────────────────────── */}
+        {/* ── Footer note ─────────────────────────────────────────────────────
         {hasData && (
           <div className="no-print text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
             <span className="font-semibold text-slate-600">ໝາຍເຫດ:</span> ຍອດຂາຍ
@@ -801,7 +801,7 @@ export default function JdbSellReconPage() {
             </code>
             · ສ່ວນຕ່າງ I = G − D − C
           </div>
-        )}
+        )} */}
 
         {/* ── Signature (print only) ─────────────────────────────────────────── */}
         {hasData && (

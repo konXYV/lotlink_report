@@ -122,7 +122,7 @@ export default function SellSummaryByDrawPage() {
   const [drawTo, setDrawTo] = useState("");
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({
     key: "DRAW_ID",
-    dir: "desc",
+    dir: "asc",
   });
   const [hasSearched, setHasSearched] = useState(false);
 

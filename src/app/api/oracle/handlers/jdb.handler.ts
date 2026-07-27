@@ -263,7 +263,7 @@ export async function handleJdbSellReconciliation(
         base.DRAWID, base.DRAWDATE, base.A_YODKHAI,
         (base.A_YODKHAI - NVL(b.TOTAL_BANK_CR, 0))                AS DISCUSPOINT,
         NVL(r.TOTAL_REFUND, 0)                                      AS REFUND_AMOUNT,
-        (NVL(b.TOTAL_BANK_CR, 0) - NVL(r.TOTAL_REFUND, 0))        AS AFTERDISCOUNT,
+        (base.A_YODKHAI-(base.A_YODKHAI - NVL(b.TOTAL_BANK_CR, 0)) - NVL(r.TOTAL_REFUND, 0))        AS AFTERDISCOUNT,
         (NVL(b.TOTAL_BANK_CR, 0) - NVL(r.TOTAL_REFUND, 0)) * 0.01 AS FEE_ONE_PERCENT,
         (NVL(b.TOTAL_BANK_CR, 0) - NVL(r.TOTAL_REFUND, 0)) * 0.99 AS AFTER_DISCUS_ALL,
         NVL(b.TOTAL_BANK_CR, 0)                                     AS REAL_STMT

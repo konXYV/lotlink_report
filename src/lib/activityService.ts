@@ -32,7 +32,10 @@ export type ActivityAction =
   | "bcel_onepay_refund_print"
   | "payout_drawid_search"
   | "payout_drawid_print"
-  | "payout_drawid_export";
+  | "payout_drawid_export"
+  | "reward_payout_by_draw_search"
+  | "reward_payout_by_draw_print"
+  | "reward_payout_by_draw_export";
 
 export const ACTION_LABELS: Record<ActivityAction, string> = {
   login:        "ເຂົ້າສູ່ລະບົບ",
@@ -62,6 +65,9 @@ export const ACTION_LABELS: Record<ActivityAction, string> = {
   payout_drawid_search: "ຄົ້ນຫາ Payout",
   payout_drawid_print:  "ພິມລາຍງານ Payout",
   payout_drawid_export: "Export Payout Excel",
+  reward_payout_by_draw_search: "ຄົ້ນຫາ ຍອດຈ່າຍລາງວັນແຕ່ລະງວດ",
+  reward_payout_by_draw_print:  "ພິມລາຍງານ ຍອດຈ່າຍລາງວັນແຕ່ລະງວດ",
+  reward_payout_by_draw_export: "Export ຍອດຈ່າຍລາງວັນແຕ່ລະງວດ Excel",
 };
 
 export const ACTION_COLORS: Record<ActivityAction, string> = {
@@ -92,6 +98,9 @@ export const ACTION_COLORS: Record<ActivityAction, string> = {
   payout_drawid_search: "bg-blue-100 text-blue-700",
   payout_drawid_print:  "bg-indigo-100 text-indigo-700",
   payout_drawid_export: "bg-emerald-100 text-emerald-700",
+  reward_payout_by_draw_search: "bg-blue-100 text-blue-700",
+  reward_payout_by_draw_print:  "bg-slate-100 text-slate-700",
+  reward_payout_by_draw_export: "bg-emerald-100 text-emerald-700",
 };
 
 export interface ActivityLog {

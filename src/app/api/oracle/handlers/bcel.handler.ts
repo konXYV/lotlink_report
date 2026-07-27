@@ -53,7 +53,7 @@ export async function handleBcelRewardSummary(
         TO_CHAR(SUM(CASE WHEN TXN_TYPE in ('SCN BONUS','SCN BONUS ADJUST')              THEN BANK_DR ELSE 0 END), 'FM9,999,999,999,990.00') AS "ໂຊກຊ້ອນໂຊກ SCN",
         TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'FEE_SCN LOTTERY PRIZE'  THEN BANK_DR ELSE 0 END), 'FM9,999,999,999,990.00') AS "ຄ່າທຳນຽມ SCN",
         TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'TAX SCN LOTTERY PRIZE'   THEN BANK_CR ELSE 0 END), 'FM9,999,999,999,990.00') AS "ອາກອນ SCN 5%"
-      FROM ${VIEWS.BCEL_STMT} ${whereClause}
+      FROM ${VIEWS.BCEL_STMT} ${whereClause} and bank_acct = '2201300002167'
       GROUP BY ROLLUP(DRAWID)
       ORDER BY GROUPING(DRAWID), DRAWID
     ) t`;
@@ -61,7 +61,7 @@ export async function handleBcelRewardSummary(
   const sqlTax = `
     SELECT TO_CHAR(SUM(BANK_CR), 'FM9,999,999,999,990.00') AS TAX_TOTAL
     FROM ${VIEWS.BCEL_STMT}
-    WHERE ${taxConditions.join(" AND ")}`;
+    WHERE ${taxConditions.join(" AND ")} and bank_acct = '2201300002167'`;
 
   const [mainRes, taxRes] = await Promise.all([
     conn.execute(sqlMain, binds, OPT_OBJ),

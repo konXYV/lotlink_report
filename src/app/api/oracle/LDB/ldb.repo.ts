@@ -15,6 +15,8 @@ export class LDB_Repo {
         SELECT * FROM APP_V_ORDERS_LDB WHERE BILLNUMBER LIKE :case_1
         UNION ALL
         SELECT * FROM APP_V_ORDERS_LDB WHERE TICKET LIKE :case_2
+        UNION ALL
+        SELECT * FROM APP_V_ORDERS_LDB WHERE JOURNAL LIKE :case_3
       )
       FETCH FIRST 1 ROW ONLY
     `;
@@ -24,6 +26,7 @@ export class LDB_Repo {
         {
           case_1: `%${case_number}%`,
           case_2: `%${case_number}%`,
+          case_3: `%${case_number}%`,
         },
         { outFormat: oracledb.OUT_FORMAT_OBJECT },
       );

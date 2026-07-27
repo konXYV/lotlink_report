@@ -12,20 +12,31 @@ export async function handleSellSummaryDrawIds(conn: Conn, OPT_OBJ: OPT) {
      FROM   ECOMMERCE2026.LOTLINK_SELL_BY_USER
      WHERE  POS_ID = '080821001APP'
      ORDER  BY TO_NUMBER(DRAW_ID) DESC`,
-    {}, OPT_OBJ,
+    {},
+    OPT_OBJ,
   );
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return NextResponse.json({ rows: (result.rows ?? []).map((r: any) => ({ DRAW_ID: Number(r.DRAW_ID) })) });
+  return NextResponse.json({
+    rows: (result.rows ?? []).map((r: any) => ({ DRAW_ID: Number(r.DRAW_ID) })),
+  });
 }
 
-export async function handleSellSummaryByDraw(conn: Conn, OPT_OBJ: OPT, params: URLSearchParams) {
+export async function handleSellSummaryByDraw(
+  conn: Conn,
+  OPT_OBJ: OPT,
+  params: URLSearchParams,
+) {
   const drawFrom = params.get("draw_from") ?? "";
-  const drawTo   = params.get("draw_to")   ?? "";
+  const drawTo = params.get("draw_to") ?? "";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const binds: Record<string, any> = {
-    posId:    "080821001APP",
+    posId: "080821001APP",
     drawFrom: drawFrom ? Number(drawFrom) : null,
-    drawTo:   drawTo   ? Number(drawTo)   : null,
+    drawTo: drawTo ? Number(drawTo) : null,
+    jdbAcct: ACCOUNTS.JDB_3180,
+    jdbTxnSell: "LOTTO_SELL",
+    jdbDealerId: "080821001APP",
+    ldbTxnSell: "SOKXAY_LOTTO_SELL",
   };
 
   const sql = `
@@ -51,55 +62,117 @@ export async function handleSellSummaryByDraw(conn: Conn, OPT_OBJ: OPT, params: 
       GROUP  BY DRAW_ID
     ),
     scn AS (
-      SELECT TO_NUMBER(ROUNDID) AS DID,
-             SUM(CASE WHEN PAYMENTTYPE = 'BCEL' THEN PAYMENTAMOUNT ELSE 0 END) AS SCN_BCEL,
-             SUM(CASE WHEN PAYMENTTYPE = 'LDB'  THEN PAYMENTAMOUNT ELSE 0 END) AS SCN_LDB,
-             SUM(CASE WHEN PAYMENTTYPE IS NOT NULL AND PAYMENTTYPE NOT IN ('BCEL','LDB') THEN PAYMENTAMOUNT ELSE 0 END) AS SCN_MMONEY
-      FROM   ECOMMERCE2026.SCN_LOTTO
-      WHERE  (:drawFrom IS NULL OR TO_NUMBER(ROUNDID) >= :drawFrom)
-        AND  (:drawTo   IS NULL OR TO_NUMBER(ROUNDID) <= :drawTo)
-      GROUP  BY ROUNDID
+      SELECT TO_NUMBER(DRAW_ID) AS DID,
+             SUM(CASE WHEN PAYMENT_CHANNEL = 'BCEL'    THEN AMOUNT ELSE 0 END) AS SCN_BCEL,
+             SUM(CASE WHEN PAYMENT_CHANNEL = 'LDB'     THEN AMOUNT ELSE 0 END) AS SCN_LDB,
+             SUM(CASE WHEN PAYMENT_CHANNEL = 'M-Money' THEN AMOUNT ELSE 0 END) AS SCN_MMONEY
+      FROM   ${VIEWS.SCN_PORTAL_DATA}
+      WHERE  (:drawFrom IS NULL OR TO_NUMBER(DRAW_ID) >= :drawFrom)
+        AND  (:drawTo   IS NULL OR TO_NUMBER(DRAW_ID) <= :drawTo)
+        and  (QUOTA='SOKXAY' or QUOTA='SCN-XOKXAY')
+      GROUP  BY DRAW_ID
     ),
-    ord AS (
-      SELECT DRAWID AS DID,
-             SUM(CASE WHEN PAYBY = 'JDB' THEN AMOUNT ELSE 0 END) AS JDB_AMT,
-             SUM(CASE WHEN PAYBY = 'LDB' THEN AMOUNT ELSE 0 END) AS LDB_AMT
-      FROM   LOTTERYORDER@SPLUS_2026_DB
-      WHERE  PAYBY IN ('JDB','LDB') AND STATUS = 'DONE'
-        AND  (:drawFrom IS NULL OR DRAWID >= :drawFrom)
-        AND  (:drawTo   IS NULL OR DRAWID <= :drawTo)
+    jdb AS (
+      SELECT TO_NUMBER(a.DRAWID) AS DID,
+             SUM(a.TOTALSALE) AS JDB_AMT
+      FROM   ${VIEWS.LOTLINK_BILL} a
+      WHERE  a.DEALERID = :jdbDealerId
+        AND  LENGTH(a.CLIENTREFNO) < 25
+        AND  EXISTS (
+          SELECT 1
+          FROM   ${VIEWS.JDB_STMT} s
+          WHERE  s.BANK_ACCT = :jdbAcct AND s.TXN_TYPE = :jdbTxnSell
+            AND  TO_CHAR(s.DRAWID) = TO_CHAR(a.DRAWID)
+            AND  TO_CHAR(s.LOTTO_BILL_NO) = TO_CHAR(a.BILLNUMBER)
+        )
+        AND  (:drawFrom IS NULL OR TO_CHAR(a.DRAWID) >= TO_CHAR(:drawFrom))
+        AND  (:drawTo   IS NULL OR TO_CHAR(a.DRAWID) <= TO_CHAR(:drawTo))
+      GROUP  BY a.DRAWID
+    ),
+    ldb AS (
+      SELECT TO_NUMBER(DRAWID) AS DID,
+             SUM(ORIGINAL_BILL_AMT) AS LDB_AMT
+      FROM   ${VIEWS.LDB_STMT}
+      WHERE  TXN_TYPE IN (:ldbTxnSell)
+        AND  LDB_TXN_ID NOT IN (
+          SELECT LDB_TXN_ID
+          FROM   ${VIEWS.LDB_STMT}
+          WHERE  TXN_TYPE IN (:ldbTxnSell)
+          GROUP  BY LDB_TXN_ID
+          HAVING COUNT(*) > 1
+             AND (SUM(DEPOSIT) - SUM(WITHDRAW)) = 0
+        )
+        AND  (:drawFrom IS NULL OR TO_CHAR(DRAWID) >= TO_CHAR(:drawFrom))
+        AND  (:drawTo   IS NULL OR TO_CHAR(DRAWID) <= TO_CHAR(:drawTo))
       GROUP  BY DRAWID
     )
     SELECT l.DID AS DRAW_ID, l.DRAW_DATE, l.LOTLINK_TOTAL AS LOTLINK,
            NVL(b.BCEL_AMT, 0) AS BCEL, NVL(b.POINT_AMT, 0) AS POINT,
            NVL(s.SCN_BCEL, 0) AS SCN_BCEL, NVL(s.SCN_LDB, 0) AS SCN_LDB,
            NVL(s.SCN_MMONEY, 0) AS SCN_MMONEY,
-           NVL(o.JDB_AMT, 0) AS JDB, NVL(o.LDB_AMT, 0) AS LDB,
-           (NVL(b.BCEL_AMT,0)+NVL(b.POINT_AMT,0)+NVL(s.SCN_BCEL,0)+NVL(s.SCN_LDB,0)+NVL(s.SCN_MMONEY,0)+NVL(o.JDB_AMT,0)+NVL(o.LDB_AMT,0)) - l.LOTLINK_TOTAL AS DIFF
+           NVL(j.JDB_AMT, 0) AS JDB, NVL(d.LDB_AMT, 0) AS LDB,
+           (NVL(b.BCEL_AMT,0)+NVL(b.POINT_AMT,0)+NVL(s.SCN_BCEL,0)+NVL(s.SCN_LDB,0)+NVL(s.SCN_MMONEY,0)+NVL(j.JDB_AMT,0)+NVL(d.LDB_AMT,0)) - l.LOTLINK_TOTAL AS DIFF
     FROM   lot l
     LEFT JOIN bcel b ON b.DID = l.DID
     LEFT JOIN scn  s ON s.DID = l.DID
-    LEFT JOIN ord  o ON o.DID = l.DID
-    ORDER  BY l.DID DESC`;
+    LEFT JOIN jdb  j ON j.DID = l.DID
+    LEFT JOIN ldb  d ON d.DID = l.DID
+    ORDER  BY l.DID ASC`;
 
-  const result = await conn.execute(sql, binds, { ...OPT_OBJ, fetchArraySize: 500 });
+  const result = await conn.execute(sql, binds, {
+    ...OPT_OBJ,
+    fetchArraySize: 500,
+  });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return NextResponse.json({ rows: (result.rows ?? []).map((r: any) => ({ DRAW_ID: Number(r.DRAW_ID), DRAW_DATE: String(r.DRAW_DATE ?? ""), LOTLINK: Number(r.LOTLINK ?? 0), BCEL: Number(r.BCEL ?? 0), POINT: Number(r.POINT ?? 0), SCN_BCEL: Number(r.SCN_BCEL ?? 0), SCN_LDB: Number(r.SCN_LDB ?? 0), SCN_MMONEY: Number(r.SCN_MMONEY ?? 0), JDB: Number(r.JDB ?? 0), LDB: Number(r.LDB ?? 0), DIFF: Number(r.DIFF ?? 0) })) });
+  return NextResponse.json({
+    rows: (result.rows ?? []).map((r: any) => ({
+      DRAW_ID: Number(r.DRAW_ID),
+      DRAW_DATE: String(r.DRAW_DATE ?? ""),
+      LOTLINK: Number(r.LOTLINK ?? 0),
+      BCEL: Number(r.BCEL ?? 0),
+      POINT: Number(r.POINT ?? 0),
+      SCN_BCEL: Number(r.SCN_BCEL ?? 0),
+      SCN_LDB: Number(r.SCN_LDB ?? 0),
+      SCN_MMONEY: Number(r.SCN_MMONEY ?? 0),
+      JDB: Number(r.JDB ?? 0),
+      LDB: Number(r.LDB ?? 0),
+      DIFF: Number(r.DIFF ?? 0),
+    })),
+  });
 }
 
-export async function handleBcelOnepayReconByDraw(conn: Conn, OPT_OBJ: OPT, params: URLSearchParams) {
+export async function handleBcelOnepayReconByDraw(
+  conn: Conn,
+  OPT_OBJ: OPT,
+  params: URLSearchParams,
+) {
   const drawFrom = params.get("draw_from") ?? "";
-  const drawTo   = params.get("draw_to")   ?? "";
+  const drawTo = params.get("draw_to") ?? "";
   const dateFrom = params.get("date_from") ?? "";
-  const dateTo   = params.get("date_to")   ?? "";
+  const dateTo = params.get("date_to") ?? "";
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const binds: Record<string, any> = { p_acct: ACCOUNTS.BCEL_ONEPAY, p_txn_type: "BCEL_ECOM_SokxayPLUS_SETTLE" };
+  const binds: Record<string, any> = {
+    p_acct: ACCOUNTS.BCEL_ONEPAY,
+    p_txn_type: "BCEL_ECOM_SokxayPLUS_SETTLE",
+  };
   const clauses = ["b.BANK_ACCT = :p_acct", "b.TXN_TYPE LIKE :p_txn_type"];
-  if (drawFrom) { clauses.push("a.DRAW_ID >= :p_draw_from"); binds.p_draw_from = drawFrom; }
-  if (drawTo)   { clauses.push("a.DRAW_ID <= :p_draw_to");   binds.p_draw_to   = drawTo;   }
-  if (dateFrom) { clauses.push("a.DRAW_DATE >= TO_DATE(:p_date_from, 'YYYY-MM-DD')"); binds.p_date_from = dateFrom; }
-  if (dateTo)   { clauses.push("a.DRAW_DATE < TO_DATE(:p_date_to, 'YYYY-MM-DD') + 1"); binds.p_date_to = dateTo; }
+  if (drawFrom) {
+    clauses.push("a.DRAW_ID >= :p_draw_from");
+    binds.p_draw_from = drawFrom;
+  }
+  if (drawTo) {
+    clauses.push("a.DRAW_ID <= :p_draw_to");
+    binds.p_draw_to = drawTo;
+  }
+  if (dateFrom) {
+    clauses.push("a.DRAW_DATE >= TO_DATE(:p_date_from, 'YYYY-MM-DD')");
+    binds.p_date_from = dateFrom;
+  }
+  if (dateTo) {
+    clauses.push("a.DRAW_DATE < TO_DATE(:p_date_to, 'YYYY-MM-DD') + 1");
+    binds.p_date_to = dateTo;
+  }
 
   const whereClause = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
 
@@ -128,17 +201,44 @@ export async function handleBcelOnepayReconByDraw(conn: Conn, OPT_OBJ: OPT, para
 
   const result = await conn.execute(sql, binds, OPT_OBJ);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return NextResponse.json({ rows: (result.rows ?? []).map((r: any) => ({ DRAW_DATE: r.DRAW_DATE != null ? String(r.DRAW_DATE) : null, DRAW_ID: r.DRAW_ID != null ? String(r.DRAW_ID) : "", TOTALSALE: r.TOTALSALE ?? "0.00", PAY_ONE: r.PAY_ONE ?? "0.00", POINT_SALE: r.POINT_SALE ?? "0.00", REAL_STMT: r.REAL_STMT ?? "0.00", DISCUSPOINT: r.DISCUSPOINT ?? "0.00", ONEPOINTTHREEPERCENT: r.ONEPOINTTHREEPERCENT ?? "0.00", DISCUSPERCENT: r.DISCUSPERCENT ?? "0.00", DIFF: r.DIFF ?? "0.00" })) });
+  return NextResponse.json({
+    rows: (result.rows ?? []).map((r: any) => ({
+      DRAW_DATE: r.DRAW_DATE != null ? String(r.DRAW_DATE) : null,
+      DRAW_ID: r.DRAW_ID != null ? String(r.DRAW_ID) : "",
+      TOTALSALE: r.TOTALSALE ?? "0.00",
+      PAY_ONE: r.PAY_ONE ?? "0.00",
+      POINT_SALE: r.POINT_SALE ?? "0.00",
+      REAL_STMT: r.REAL_STMT ?? "0.00",
+      DISCUSPOINT: r.DISCUSPOINT ?? "0.00",
+      ONEPOINTTHREEPERCENT: r.ONEPOINTTHREEPERCENT ?? "0.00",
+      DISCUSPERCENT: r.DISCUSPERCENT ?? "0.00",
+      DIFF: r.DIFF ?? "0.00",
+    })),
+  });
 }
 
-export async function handleSellChannelByDraw(conn: Conn, OPT_OBJ: OPT, params: URLSearchParams) {
+export async function handleSellChannelByDraw(
+  conn: Conn,
+  OPT_OBJ: OPT,
+  params: URLSearchParams,
+) {
   const drawFrom = params.get("draw_from") ?? "";
-  const drawTo   = params.get("draw_to")   ?? "";
+  const drawTo = params.get("draw_to") ?? "";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const binds: Record<string, any> = {};
-  const whereClauses = ["LB.STATUS = 'ACTIVE'"];
-  if (drawFrom) { whereClauses.push("TO_NUMBER(LB.DRAWID) >= :drawFrom"); binds.drawFrom = Number(drawFrom); }
-  if (drawTo)   { whereClauses.push("TO_NUMBER(LB.DRAWID) <= :drawTo");   binds.drawTo   = Number(drawTo);   }
+  const whereClauses = [
+    "LB.STATUS = 'ACTIVE'",
+    "TRUNC(LU.END_DATE) <> TO_DATE('2026-02-19', 'YYYY-MM-DD')",
+    "TRUNC(LU.END_DATE) <> TO_DATE('2026-05-24', 'YYYY-MM-DD')",
+  ];
+  if (drawFrom) {
+    whereClauses.push("TO_NUMBER(LB.DRAWID) >= :drawFrom");
+    binds.drawFrom = Number(drawFrom);
+  }
+  if (drawTo) {
+    whereClauses.push("TO_NUMBER(LB.DRAWID) <= :drawTo");
+    binds.drawTo = Number(drawTo);
+  }
   const WHERE_LB = whereClauses.join(" AND ");
 
   const sql = `
@@ -168,18 +268,54 @@ export async function handleSellChannelByDraw(conn: Conn, OPT_OBJ: OPT, params: 
     GROUP BY LB.DRAWID
     ORDER BY TO_NUMBER(LB.DRAWID) ASC`;
 
-  const result = await conn.execute(sql, binds, { ...OPT_OBJ, fetchArraySize: 500 });
+  const result = await conn.execute(sql, binds, {
+    ...OPT_OBJ,
+    fetchArraySize: 500,
+  });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return NextResponse.json({ rows: (result.rows ?? []).map((r: any) => ({ DRAWID: String(r.DRAWID ?? ""), DRAW_DATE: String(r.DRAW_DATE ?? ""), TOTAL_BILLS_ALL: Number(r.TOTAL_BILLS_ALL ?? 0), TOTAL_SALE_ALL: Number(r.TOTAL_SALE_ALL ?? 0), TOTAL_BILLS_APP: Number(r.TOTAL_BILLS_APP ?? 0), TOTAL_SALE_APP: Number(r.TOTAL_SALE_APP ?? 0), BILLS_APP_SOKXAY: Number(r.BILLS_APP_SOKXAY ?? 0), SALE_APP_SOKXAY: Number(r.SALE_APP_SOKXAY ?? 0), BILLS_APP_SCN: Number(r.BILLS_APP_SCN ?? 0), SALE_APP_SCN: Number(r.SALE_APP_SCN ?? 0), DIFF_BILLS_APP: Number(r.DIFF_BILLS_APP ?? 0), DIFF_SALE_APP: Number(r.DIFF_SALE_APP ?? 0), TOTAL_BILLS_POS: Number(r.TOTAL_BILLS_POS ?? 0), TOTAL_SALE_POS: Number(r.TOTAL_SALE_POS ?? 0), BILLS_POS_TOUBEE: Number(r.BILLS_POS_TOUBEE ?? 0), SALE_POS_TOUBEE: Number(r.SALE_POS_TOUBEE ?? 0), BILLS_POS_SCN: Number(r.BILLS_POS_SCN ?? 0), SALE_POS_SCN: Number(r.SALE_POS_SCN ?? 0), DIFF_BILLS_POS: Number(r.DIFF_BILLS_POS ?? 0), DIFF_SALE_POS: Number(r.DIFF_SALE_POS ?? 0), DIFF_BILLS_ALL: Number(r.DIFF_BILLS_ALL ?? 0), DIFF_SALE_ALL: Number(r.DIFF_SALE_ALL ?? 0) })) });
+  return NextResponse.json({
+    rows: (result.rows ?? []).map((r: any) => ({
+      DRAWID: String(r.DRAWID ?? ""),
+      DRAW_DATE: String(r.DRAW_DATE ?? ""),
+      TOTAL_BILLS_ALL: Number(r.TOTAL_BILLS_ALL ?? 0),
+      TOTAL_SALE_ALL: Number(r.TOTAL_SALE_ALL ?? 0),
+      TOTAL_BILLS_APP: Number(r.TOTAL_BILLS_APP ?? 0),
+      TOTAL_SALE_APP: Number(r.TOTAL_SALE_APP ?? 0),
+      BILLS_APP_SOKXAY: Number(r.BILLS_APP_SOKXAY ?? 0),
+      SALE_APP_SOKXAY: Number(r.SALE_APP_SOKXAY ?? 0),
+      BILLS_APP_SCN: Number(r.BILLS_APP_SCN ?? 0),
+      SALE_APP_SCN: Number(r.SALE_APP_SCN ?? 0),
+      DIFF_BILLS_APP: Number(r.DIFF_BILLS_APP ?? 0),
+      DIFF_SALE_APP: Number(r.DIFF_SALE_APP ?? 0),
+      TOTAL_BILLS_POS: Number(r.TOTAL_BILLS_POS ?? 0),
+      TOTAL_SALE_POS: Number(r.TOTAL_SALE_POS ?? 0),
+      BILLS_POS_TOUBEE: Number(r.BILLS_POS_TOUBEE ?? 0),
+      SALE_POS_TOUBEE: Number(r.SALE_POS_TOUBEE ?? 0),
+      BILLS_POS_SCN: Number(r.BILLS_POS_SCN ?? 0),
+      SALE_POS_SCN: Number(r.SALE_POS_SCN ?? 0),
+      DIFF_BILLS_POS: Number(r.DIFF_BILLS_POS ?? 0),
+      DIFF_SALE_POS: Number(r.DIFF_SALE_POS ?? 0),
+      DIFF_BILLS_ALL: Number(r.DIFF_BILLS_ALL ?? 0),
+      DIFF_SALE_ALL: Number(r.DIFF_SALE_ALL ?? 0),
+    })),
+  });
 }
 
-export async function handleSellChannelByMonth(conn: Conn, OPT_OBJ: OPT, params: URLSearchParams) {
+export async function handleSellChannelByMonth(
+  conn: Conn,
+  OPT_OBJ: OPT,
+  params: URLSearchParams,
+) {
   const monthFrom = params.get("month_from") ?? "";
-  const monthTo   = params.get("month_to")   ?? "";
+  const monthTo = params.get("month_to") ?? "";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const binds: Record<string, any> = {};
-  const whereClauses   = ["STATUS = 'ACTIVE'"];
-  const whereClausesLB = ["LB.STATUS = 'ACTIVE'"];
+  const whereClauses = ["STATUS = 'ACTIVE'"];
+  const whereClausesLB = [
+    "LB.STATUS = 'ACTIVE'",
+    "TRUNC(LU.END_DATE) <> TO_DATE('2026-02-19', 'YYYY-MM-DD')",
+    "TRUNC(LU.END_DATE) <> TO_DATE('2026-05-24', 'YYYY-MM-DD')",
+  ];
   if (monthFrom) {
     whereClauses.push("TO_CHAR(DRAW_DATE,'YYYY-MM') >= :monthFrom");
     whereClausesLB.push("TO_CHAR(LB.DRAW_DATE,'YYYY-MM') >= :monthFrom");
@@ -190,7 +326,7 @@ export async function handleSellChannelByMonth(conn: Conn, OPT_OBJ: OPT, params:
     whereClausesLB.push("TO_CHAR(LB.DRAW_DATE,'YYYY-MM') <= :monthTo");
     binds.monthTo = monthTo;
   }
-  const WHERE    = whereClauses.join(" AND ");
+  const WHERE = whereClauses.join(" AND ");
   const WHERE_LB = whereClausesLB.join(" AND ");
 
   const sql = `
@@ -236,7 +372,34 @@ export async function handleSellChannelByMonth(conn: Conn, OPT_OBJ: OPT, params:
     ) B ON A.SALE_MONTH = B.SALE_MONTH
     ORDER BY A.SALE_MONTH ASC`;
 
-  const result = await conn.execute(sql, binds, { ...OPT_OBJ, fetchArraySize: 200 });
+  const result = await conn.execute(sql, binds, {
+    ...OPT_OBJ,
+    fetchArraySize: 200,
+  });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return NextResponse.json({ rows: (result.rows ?? []).map((r: any) => ({ SALE_MONTH: String(r.SALE_MONTH ?? ""), TOTAL_BILLS_ALL: Number(r.TOTAL_BILLS_ALL ?? 0), TOTAL_SALE_ALL: Number(r.TOTAL_SALE_ALL ?? 0), TOTAL_BILLS_APP: Number(r.TOTAL_BILLS_APP ?? 0), TOTAL_SALE_APP: Number(r.TOTAL_SALE_APP ?? 0), BILLS_APP_SOKXAY: Number(r.BILLS_APP_SOKXAY ?? 0), SALE_APP_SOKXAY: Number(r.SALE_APP_SOKXAY ?? 0), BILLS_APP_SCN: Number(r.BILLS_APP_SCN ?? 0), SALE_APP_SCN: Number(r.SALE_APP_SCN ?? 0), DIFF_BILLS_APP: Number(r.DIFF_BILLS_APP ?? 0), DIFF_SALE_APP: Number(r.DIFF_SALE_APP ?? 0), TOTAL_BILLS_POS: Number(r.TOTAL_BILLS_POS ?? 0), TOTAL_SALE_POS: Number(r.TOTAL_SALE_POS ?? 0), BILLS_POS_TOUBEE: Number(r.BILLS_POS_TOUBEE ?? 0), SALE_POS_TOUBEE: Number(r.SALE_POS_TOUBEE ?? 0), BILLS_POS_SCN: Number(r.BILLS_POS_SCN ?? 0), SALE_POS_SCN: Number(r.SALE_POS_SCN ?? 0), DIFF_BILLS_POS: Number(r.DIFF_BILLS_POS ?? 0), DIFF_SALE_POS: Number(r.DIFF_SALE_POS ?? 0), DIFF_BILLS_ALL: Number(r.DIFF_BILLS_ALL ?? 0), DIFF_SALE_ALL: Number(r.DIFF_SALE_ALL ?? 0) })) });
+  return NextResponse.json({
+    rows: (result.rows ?? []).map((r: any) => ({
+      SALE_MONTH: String(r.SALE_MONTH ?? ""),
+      TOTAL_BILLS_ALL: Number(r.TOTAL_BILLS_ALL ?? 0),
+      TOTAL_SALE_ALL: Number(r.TOTAL_SALE_ALL ?? 0),
+      TOTAL_BILLS_APP: Number(r.TOTAL_BILLS_APP ?? 0),
+      TOTAL_SALE_APP: Number(r.TOTAL_SALE_APP ?? 0),
+      BILLS_APP_SOKXAY: Number(r.BILLS_APP_SOKXAY ?? 0),
+      SALE_APP_SOKXAY: Number(r.SALE_APP_SOKXAY ?? 0),
+      BILLS_APP_SCN: Number(r.BILLS_APP_SCN ?? 0),
+      SALE_APP_SCN: Number(r.SALE_APP_SCN ?? 0),
+      DIFF_BILLS_APP: Number(r.DIFF_BILLS_APP ?? 0),
+      DIFF_SALE_APP: Number(r.DIFF_SALE_APP ?? 0),
+      TOTAL_BILLS_POS: Number(r.TOTAL_BILLS_POS ?? 0),
+      TOTAL_SALE_POS: Number(r.TOTAL_SALE_POS ?? 0),
+      BILLS_POS_TOUBEE: Number(r.BILLS_POS_TOUBEE ?? 0),
+      SALE_POS_TOUBEE: Number(r.SALE_POS_TOUBEE ?? 0),
+      BILLS_POS_SCN: Number(r.BILLS_POS_SCN ?? 0),
+      SALE_POS_SCN: Number(r.SALE_POS_SCN ?? 0),
+      DIFF_BILLS_POS: Number(r.DIFF_BILLS_POS ?? 0),
+      DIFF_SALE_POS: Number(r.DIFF_SALE_POS ?? 0),
+      DIFF_BILLS_ALL: Number(r.DIFF_BILLS_ALL ?? 0),
+      DIFF_SALE_ALL: Number(r.DIFF_SALE_ALL ?? 0),
+    })),
+  });
 }

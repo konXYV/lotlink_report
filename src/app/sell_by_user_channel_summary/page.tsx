@@ -16,6 +16,10 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/authContext";
 import { logActivity } from "@/lib/activityService";
+import {
+  exportSellByUserChannelDraw,
+  exportSellByUserChannelMonth,
+} from "@/lib/Exportsellbyuserchannelsummary";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface DrawRow {
@@ -415,6 +419,56 @@ export default function SellChannelSummaryPage() {
   const grandDraw = useMemo(() => sumDrawRows(sortedDraw), [sortedDraw]);
   const grandMonth = useMemo(() => sumMonthRows(sortedMonth), [sortedMonth]);
 
+  // ── Export Excel ────────────────────────────────────────────────────────────
+  const [exportingDraw, setExportingDraw] = useState(false);
+  const [exportingMonth, setExportingMonth] = useState(false);
+
+  const handleExportDraw = async () => {
+    if (!sortedDraw.length) return;
+    setExportingDraw(true);
+    try {
+      await exportSellByUserChannelDraw(
+        sortedDraw,
+        drawFrom,
+        drawTo,
+        user?.displayName ?? user?.email ?? "",
+      );
+      if (user)
+        logActivity({
+          uid: user.uid,
+          displayName: user.displayName,
+          email: user.email,
+          action: "lotto_export",
+          detail: `sell_by_user_channel_summary (draw): ${drawFrom || "ALL"}~${drawTo || "ALL"}`,
+        });
+    } finally {
+      setExportingDraw(false);
+    }
+  };
+
+  const handleExportMonth = async () => {
+    if (!sortedMonth.length) return;
+    setExportingMonth(true);
+    try {
+      await exportSellByUserChannelMonth(
+        sortedMonth,
+        monthFrom,
+        monthTo,
+        user?.displayName ?? user?.email ?? "",
+      );
+      if (user)
+        logActivity({
+          uid: user.uid,
+          displayName: user.displayName,
+          email: user.email,
+          action: "lotto_export",
+          detail: `sell_by_user_channel_summary (month): ${monthFrom || "ALL"}~${monthTo || "ALL"}`,
+        });
+    } finally {
+      setExportingMonth(false);
+    }
+  };
+
   // ── Derive unique month list from drawIds for month picker ─────────────────
   // We use a simple year-month input (text field) since we don't have a month list endpoint
   const sortedDrawIds = useMemo(
@@ -451,10 +505,37 @@ export default function SellChannelSummaryPage() {
           </div>
           {canExport && (
             <div className="flex gap-2 items-center">
-              <span className="text-xs text-slate-400">
-                <FileSpreadsheet size={14} className="inline mr-1" />
-                ສົ່ງອອກ Excel (ໄວໃນ໌)
-              </span>
+              {tab === "draw" ? (
+                <button
+                  onClick={handleExportDraw}
+                  disabled={
+                    exportingDraw || !drawSearched || sortedDraw.length === 0
+                  }
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded text-xs hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                >
+                  {exportingDraw ? (
+                    <RefreshCw size={14} className="animate-spin" />
+                  ) : (
+                    <FileSpreadsheet size={14} />
+                  )}
+                  Export Excel
+                </button>
+              ) : (
+                <button
+                  onClick={handleExportMonth}
+                  disabled={
+                    exportingMonth || !monthSearched || sortedMonth.length === 0
+                  }
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded text-xs hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                >
+                  {exportingMonth ? (
+                    <RefreshCw size={14} className="animate-spin" />
+                  ) : (
+                    <FileSpreadsheet size={14} />
+                  )}
+                  Export Excel
+                </button>
+              )}
             </div>
           )}
         </div>
