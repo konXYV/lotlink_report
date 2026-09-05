@@ -99,6 +99,8 @@ export const VALID_VIEWS = [
   "scn_win_draw_detail",
   "scn_win_tax5_items",
   "unit_sell_summary",
+  "overdue_unpaid_reward",
+  "scn_reward_quota",
 ] as const;
 
 export type ViewKey = (typeof VALID_VIEWS)[number];

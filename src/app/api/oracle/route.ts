@@ -67,6 +67,10 @@ import {
 } from "./handlers/scn_win_summary.handler";
 // Unit sell summary (toubee_unit_summary / nkl_unit_sell_summary / withdraw_summary_by_province)
 import { handleUnitSellSummary } from "./handlers/unit_sell_summary.handler";
+// Overdue unpaid reward (LOTLINK_REWARD without matching LOTLINK_PAYOUT after N days)
+import { handleOverdueUnpaidReward } from "./handlers/overdue_reward.handler";
+// SCN + Sokxay quota reward, by DRAW_ID, switchable by quota
+import { handleScnRewardQuota } from "./handlers/scn_reward_quota.handler";
 
 export async function GET(req: NextRequest) {
   const params = new URL(req.url).searchParams;
@@ -206,6 +210,14 @@ export async function GET(req: NextRequest) {
       // ── Unit Sell Summary (toubee / nkl / province, via `variant` param) ───
       case "unit_sell_summary":
         return await handleUnitSellSummary(connection, OPT_OBJ, params);
+
+      // ── Overdue Unpaid Reward ───────────────────────────────────────────────
+      case "overdue_unpaid_reward":
+        return await handleOverdueUnpaidReward(connection, OPT_OBJ, params);
+
+      // ── SCN + Sokxay Quota Reward (by DRAW_ID, switchable) ─────────────────
+      case "scn_reward_quota":
+        return await handleScnRewardQuota(connection, OPT_OBJ, params);
 
       default:
         return NextResponse.json(

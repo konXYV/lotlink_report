@@ -239,7 +239,7 @@ export async function handleJdbSellReconciliation(
   const binds: Record<string, any> = {
     p_acct: ACCOUNTS.JDB_3180,
     p_txn_sell: "LOTTO_SELL",
-    p_txn_refund: "SPLUS_REFUND",
+    // p_txn_refund: "SPLUS_REFUND",
     p_dealerid: "080821001APP",
   };
 
@@ -291,7 +291,7 @@ export async function handleJdbSellReconciliation(
       LEFT JOIN (
         SELECT TO_CHAR(DRAWID) AS DRAWID, SUM(BANK_DR) AS TOTAL_REFUND
         FROM ${VIEWS.JDB_STMT}
-        WHERE BANK_ACCT = :p_acct AND TXN_TYPE = :p_txn_refund
+        WHERE BANK_ACCT = :p_acct AND TXN_TYPE like '%SPLUS_REFUND%'
         GROUP BY DRAWID
       ) r ON r.DRAWID = TO_CHAR(base.DRAWID)
     ) q

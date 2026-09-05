@@ -35,7 +35,10 @@ export type ActivityAction =
   | "payout_drawid_export"
   | "reward_payout_by_draw_search"
   | "reward_payout_by_draw_print"
-  | "reward_payout_by_draw_export";
+  | "reward_payout_by_draw_export"
+  | "overdue_unpaid_reward_search"
+  | "overdue_unpaid_reward_export"
+  | "scn_reward_quota_export";
 
 export const ACTION_LABELS: Record<ActivityAction, string> = {
   login:        "ເຂົ້າສູ່ລະບົບ",
@@ -68,6 +71,9 @@ export const ACTION_LABELS: Record<ActivityAction, string> = {
   reward_payout_by_draw_search: "ຄົ້ນຫາ ຍອດຈ່າຍລາງວັນແຕ່ລະງວດ",
   reward_payout_by_draw_print:  "ພິມລາຍງານ ຍອດຈ່າຍລາງວັນແຕ່ລະງວດ",
   reward_payout_by_draw_export: "Export ຍອດຈ່າຍລາງວັນແຕ່ລະງວດ Excel",
+  overdue_unpaid_reward_search: "ຄົ້ນຫາ ລາງວັນຄ້າງຈ່າຍ",
+  overdue_unpaid_reward_export: "Export ລາງວັນຄ້າງຈ່າຍ Excel",
+  scn_reward_quota_export: "Export ລາຍງານ Quota SCN/Sokxay Excel",
 };
 
 export const ACTION_COLORS: Record<ActivityAction, string> = {
@@ -101,6 +107,9 @@ export const ACTION_COLORS: Record<ActivityAction, string> = {
   reward_payout_by_draw_search: "bg-blue-100 text-blue-700",
   reward_payout_by_draw_print:  "bg-slate-100 text-slate-700",
   reward_payout_by_draw_export: "bg-emerald-100 text-emerald-700",
+  overdue_unpaid_reward_search: "bg-blue-100 text-blue-700",
+  overdue_unpaid_reward_export: "bg-emerald-100 text-emerald-700",
+  scn_reward_quota_export: "bg-emerald-100 text-emerald-700",
 };
 
 export interface ActivityLog {

@@ -1,20 +1,35 @@
 "use client";
 import { useState, useEffect, useMemo, useRef } from "react";
 import {
-  Plus, Search, Pencil, Trash2, RefreshCw, AlertCircle,
-  CheckCircle2, Clock, BarChart3, Filter, Upload, Download, Eye,
+  Plus,
+  Search,
+  Pencil,
+  Trash2,
+  RefreshCw,
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  BarChart3,
+  Filter,
+  Upload,
+  Download,
+  Eye,
   RotateCcw,
 } from "lucide-react";
 import * as XLSX from "xlsx-js-style";
+import ExcelJS from "exceljs";
 import type { Issue, IssueFormData, IssueStatus } from "@/lib/issueService";
 import {
   subscribeToAllIssues,
-  addIssue, updateIssue,
-  softDeleteIssue, restoreIssue,
+  addIssue,
+  updateIssue,
+  softDeleteIssue,
+  restoreIssue,
 } from "@/lib/issueService";
 // updateIssue kept for handleSave
 import IssueModal from "@/components/IssueModal";
 import PreviewModal from "@/components/PreviewModal";
+import { ImageCell } from "@/app/utils/Preview_img";
 import { useAuth } from "@/lib/authContext";
 import { logActivity } from "@/lib/activityService";
 
@@ -28,7 +43,11 @@ function tsToMs(ts: unknown): number {
 function formatDate(ts: unknown): string {
   const ms = tsToMs(ts);
   if (!ms) return "-";
-  return new Date(ms).toLocaleDateString("lo-LA", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return new Date(ms).toLocaleDateString("lo-LA", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 }
 function formatDateForExcel(ts: unknown): string {
   const ms = tsToMs(ts);
@@ -44,7 +63,10 @@ function parseExcelDate(val: unknown): string {
     const d = XLSX.SSF.parse_date_code(val);
     return `${d.y}-${String(d.m).padStart(2, "0")}-${String(d.d).padStart(2, "0")}`;
   }
-  if (typeof val === "string") { const d = new Date(val); if (!isNaN(d.getTime())) return d.toISOString().split("T")[0]; }
+  if (typeof val === "string") {
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
+  }
   if (val instanceof Date) return val.toISOString().split("T")[0];
   return "";
 }
@@ -55,11 +77,75 @@ function parseStatus(val: unknown): IssueStatus {
   return "pending";
 }
 
+// ─── Image export helpers ─────────────────────────────────────────────────────
+
+// Ask Cloudinary to pre-resize/convert to a small jpg so we download less data
+// and always get a format ExcelJS can embed (jpeg/png/gif only).
+function cloudinaryThumb(url: string, size = 128): string {
+  if (url.includes("res.cloudinary.com") && url.includes("/upload/")) {
+    return url.replace(
+      "/upload/",
+      `/upload/w_${size},h_${size},c_fill,f_jpg,q_auto/`,
+    );
+  }
+  return url;
+}
+
+type FetchedImage = { base64: string; extension: "jpeg" | "png" | "gif" };
+
+async function fetchImageAsBase64(url: string): Promise<FetchedImage | null> {
+  try {
+    const res = await fetch(cloudinaryThumb(url));
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    const extension: FetchedImage["extension"] = blob.type.includes("png")
+      ? "png"
+      : blob.type.includes("gif")
+        ? "gif"
+        : "jpeg";
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+    return { base64, extension };
+  } catch {
+    return null;
+  }
+}
+
+// Simple concurrency-limited async map so we don't fire off hundreds of
+// simultaneous image requests when exporting a large list.
+async function mapLimit<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let idx = 0;
+  const worker = async () => {
+    while (idx < items.length) {
+      const cur = idx++;
+      results[cur] = await fn(items[cur]);
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, worker),
+  );
+  return results;
+}
+
+const IMG_COLS = 4; // max thumbnails embedded per issue row
+const IMG_CELL_PX = 100; // thumbnail square size in px (bigger = easier to see, but bulkier file/rows)
+const pxToPt = (px: number) => px * 0.75;
+
 // ─── Generate random Issue code (e.g. ISS-4K2M) ──────────────────────────────
 function generateIssueCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "";
-  for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  for (let i = 0; i < 4; i++)
+    code += chars[Math.floor(Math.random() * chars.length)];
   return `ISS-${code}`;
 }
 
@@ -72,219 +158,462 @@ export default function IssuesPage() {
   const { user, perm } = useAuth();
   const isAdmin = user?.isAdmin ?? false;
 
-  const [issues, setIssues]               = useState<Issue[]>([]);
+  const [issues, setIssues] = useState<Issue[]>([]);
   const [deletedIssues, setDeletedIssues] = useState<Issue[]>([]);
-  const [loading, setLoading]             = useState(true);
-  const [tab, setTab]                     = useState<TabView>("active");
-  const [error, setError]                 = useState<string | null>(null);
-  const [search, setSearch]               = useState("");
-  const [filterStatus, setFilterStatus]   = useState<FilterStatus>("all");
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<TabView>("active");
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
-  const [showModal, setShowModal]         = useState(false);
-  const [previewCode, setPreviewCode]     = useState<string>("");
-  const [editingIssue, setEditingIssue]   = useState<Issue | null>(null);
-  const [previewIssue, setPreviewIssue]   = useState<Issue | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string } | null>(null);
-  const [selected, setSelected]           = useState<Set<string>>(new Set());
+  const [showModal, setShowModal] = useState(false);
+  const [previewCode, setPreviewCode] = useState<string>("");
+  const [editingIssue, setEditingIssue] = useState<Issue | null>(null);
+  const [previewIssue, setPreviewIssue] = useState<Issue | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string } | null>(
+    null,
+  );
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
-  const [importing, setImporting]         = useState(false);
-  const [importResult, setImportResult]   = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [importResult, setImportResult] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const unsub = subscribeToAllIssues(
-      (data) => { setIssues(data); setLoading(false); },
+      (data) => {
+        setIssues(data);
+        setLoading(false);
+      },
       (data) => setDeletedIssues(data),
     );
     return () => unsub();
   }, []);
 
-  const allCategories = useMemo(() =>
-    Array.from(new Set(issues.map((i) => i.category))).sort(),
-  [issues]);
+  const allCategories = useMemo(
+    () => Array.from(new Set(issues.map((i) => i.category))).sort(),
+    [issues],
+  );
 
-  const activeFiltered = useMemo(() => issues
-    .filter((issue) => {
-      const q = search.toLowerCase();
-      const matchSearch = !search || issue.description.toLowerCase().includes(q) ||
-        issue.category.toLowerCase().includes(q) || issue.no.toString().includes(q) ||
-        (issue.issueCode ?? "").toLowerCase().includes(q);
-      return matchSearch &&
-        (filterStatus === "all" || issue.status === filterStatus) &&
-        (filterCategory === "all" || issue.category === filterCategory);
-    })
-    .sort((a, b) => {
-      const aMs = tsToMs(a.reportedDate), bMs = tsToMs(b.reportedDate);
-      if (!aMs && !bMs) return a.no - b.no;
-      if (!aMs) return 1; if (!bMs) return -1;
-      return aMs - bMs;
-    }),
-  [issues, search, filterStatus, filterCategory]);
+  const activeFiltered = useMemo(
+    () =>
+      issues
+        .filter((issue) => {
+          const q = search.toLowerCase();
+          const matchSearch =
+            !search ||
+            issue.description.toLowerCase().includes(q) ||
+            issue.category.toLowerCase().includes(q) ||
+            issue.no.toString().includes(q) ||
+            (issue.issueCode ?? "").toLowerCase().includes(q);
+          return (
+            matchSearch &&
+            (filterStatus === "all" || issue.status === filterStatus) &&
+            (filterCategory === "all" || issue.category === filterCategory)
+          );
+        })
+        .sort((a, b) => {
+          const aMs = tsToMs(a.reportedDate),
+            bMs = tsToMs(b.reportedDate);
+          if (!aMs && !bMs) return a.no - b.no;
+          if (!aMs) return 1;
+          if (!bMs) return -1;
+          return aMs - bMs;
+        }),
+    [issues, search, filterStatus, filterCategory],
+  );
 
-  const trashFiltered = useMemo(() => deletedIssues
-    .filter((issue) => {
-      const q = search.toLowerCase();
-      return !search || issue.description.toLowerCase().includes(q) ||
-        issue.category.toLowerCase().includes(q) || issue.no.toString().includes(q) ||
-        (issue.issueCode ?? "").toLowerCase().includes(q);
-    }),
-  [deletedIssues, search]);
+  const trashFiltered = useMemo(
+    () =>
+      deletedIssues.filter((issue) => {
+        const q = search.toLowerCase();
+        return (
+          !search ||
+          issue.description.toLowerCase().includes(q) ||
+          issue.category.toLowerCase().includes(q) ||
+          issue.no.toString().includes(q) ||
+          (issue.issueCode ?? "").toLowerCase().includes(q)
+        );
+      }),
+    [deletedIssues, search],
+  );
 
   const filtered = tab === "active" ? activeFiltered : trashFiltered;
 
-  const stats = useMemo(() => ({
-    total: issues.length,
-    pending: issues.filter((i) => i.status === "pending").length,
-    in_progress: issues.filter((i) => i.status === "in_progress").length,
-    done: issues.filter((i) => i.status === "done").length,
-  }), [issues]);
+  const stats = useMemo(
+    () => ({
+      total: issues.length,
+      pending: issues.filter((i) => i.status === "pending").length,
+      in_progress: issues.filter((i) => i.status === "in_progress").length,
+      done: issues.filter((i) => i.status === "done").length,
+    }),
+    [issues],
+  );
 
   // ── Checkbox ────────────────────────────────────────────────────────────────
   const allIds = filtered.map((i) => i.id!).filter(Boolean);
-  const allChecked = allIds.length > 0 && allIds.every((id) => selected.has(id));
+  const allChecked =
+    allIds.length > 0 && allIds.every((id) => selected.has(id));
   const someChecked = allIds.some((id) => selected.has(id));
   const toggleAll = () => {
-    if (allChecked) setSelected((p) => { const n = new Set(p); allIds.forEach((id) => n.delete(id)); return n; });
-    else setSelected((p) => { const n = new Set(p); allIds.forEach((id) => n.add(id)); return n; });
+    if (allChecked)
+      setSelected((p) => {
+        const n = new Set(p);
+        allIds.forEach((id) => n.delete(id));
+        return n;
+      });
+    else
+      setSelected((p) => {
+        const n = new Set(p);
+        allIds.forEach((id) => n.add(id));
+        return n;
+      });
   };
-  const toggleOne = (id: string) => setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleOne = (id: string) =>
+    setSelected((p) => {
+      const n = new Set(p);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
 
   // Switch tab → clear selection
-  const switchTab = (t: TabView) => { setTab(t); setSelected(new Set()); };
+  const switchTab = (t: TabView) => {
+    setTab(t);
+    setSelected(new Set());
+  };
 
-  // ── Export ──────────────────────────────────────────────────────────────────
-  const handleExport = () => {
-    if (user) logActivity({ uid: user.uid, displayName: user.displayName, email: user.email, action: "issue_export", detail: `${activeFiltered.length} ລາຍການ` });
-    const headers = ["ລະຫັດ", "ໝວດ", "ລາຍການ", "ສະຖານະ", "ມື້ສັງລວມ", "ມື້ແກ້ໄຂສໍາເລັດ", "ໝາຍເຫດ"];
-    const colWidths = [{ wch: 14 }, { wch: 28 }, { wch: 60 }, { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 30 }];
+  // ── Export (ExcelJS — embeds real thumbnail images per row) ─────────────────
+  const handleExport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    setError(null);
+    try {
+      if (user)
+        logActivity({
+          uid: user.uid,
+          displayName: user.displayName,
+          email: user.email,
+          action: "issue_export",
+          detail: `${activeFiltered.length} ລາຍການ`,
+        });
 
-    const headerStyle = {
-      font: { bold: true, color: { rgb: "FFFFFF" }, sz: 11, name: "Phetsarath OT" },
-      fill: { fgColor: { rgb: "2563EB" } },
-      alignment: { horizontal: "center", vertical: "center", wrapText: true },
-      border: {
-        top:    { style: "thin", color: { rgb: "BFDBFE" } },
-        bottom: { style: "thin", color: { rgb: "BFDBFE" } },
-        left:   { style: "thin", color: { rgb: "BFDBFE" } },
-        right:  { style: "thin", color: { rgb: "BFDBFE" } },
-      },
-    };
+      // 1) Pre-fetch every distinct image once (avoids re-downloading duplicates)
+      const allUrls = Array.from(
+        new Set(
+          activeFiltered.flatMap((i) => (i.images ?? []).slice(0, IMG_COLS)),
+        ),
+      );
+      const fetched = await mapLimit(allUrls, 6, fetchImageAsBase64);
+      const imgMap = new Map<string, FetchedImage | null>(
+        allUrls.map((u, i) => [u, fetched[i]]),
+      );
 
-    const statusStyle: Record<string, object> = {
-      "ສໍາເລັດ":        { font: { bold: true, color: { rgb: "065F46" }, name: "Phetsarath OT" }, fill: { fgColor: { rgb: "D1FAE5" } } },
-      "ກໍາລັງດໍາເນີນ": { font: { bold: true, color: { rgb: "1E40AF" }, name: "Phetsarath OT" }, fill: { fgColor: { rgb: "DBEAFE" } } },
-      "ລໍຖ້າ":           { font: { bold: true, color: { rgb: "92400E" }, name: "Phetsarath OT" }, fill: { fgColor: { rgb: "FEF3C7" } } },
-    };
+      // 2) Build workbook
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet("Issues");
 
-    const cellBorder = {
-      border: {
-        top:    { style: "thin", color: { rgb: "E2E8F0" } },
-        bottom: { style: "thin", color: { rgb: "E2E8F0" } },
-        left:   { style: "thin", color: { rgb: "E2E8F0" } },
-        right:  { style: "thin", color: { rgb: "E2E8F0" } },
-      },
-    };
-
-    const ws: XLSX.WorkSheet = {};
-    ws["!cols"] = colWidths;
-    ws["!rows"] = [{ hpt: 28 }];
-
-    // Header row
-    headers.forEach((h, c) => {
-      const addr = XLSX.utils.encode_cell({ r: 0, c });
-      ws[addr] = { v: h, t: "s", s: headerStyle };
-    });
-
-    // Data rows
-    activeFiltered.forEach((issue, r) => {
-      const rowIdx = r + 1;
-      const isEven = r % 2 === 0;
-      const rowBg = isEven ? "FFFFFF" : "F8FAFC";
-      const baseStyle = { ...cellBorder, font: { name: "Phetsarath OT", sz: 11 }, fill: { fgColor: { rgb: rowBg } }, alignment: { vertical: "center", wrapText: true } };
-      const centerStyle = { ...baseStyle, alignment: { horizontal: "center", vertical: "center", wrapText: false } };
-      const monoStyle   = { ...centerStyle, font: { name: "Courier New", sz: 10, bold: true, color: { rgb: "1E40AF" } } };
-
-      const status = statusLabel(issue.status);
-      const sStyle = statusStyle[status] ?? {};
-
-      // [value, style]
-      const cells: [string, object][] = [
-        [issue.issueCode || `#${issue.no}`, monoStyle],
-        [issue.category,                      baseStyle],
-        [issue.description,                   baseStyle],
-        [status,                              { ...centerStyle, ...sStyle }],
-        [formatDateForExcel(issue.reportedDate) || "-", centerStyle],
-        [formatDateForExcel(issue.resolvedDate) || "-", centerStyle],
-        [issue.note || "",                    baseStyle],
+      const headers = [
+        "ລະຫັດ",
+        "ໝວດ",
+        "ລາຍການ",
+        "ສະຖານະ",
+        "ມື້ສັງລວມ",
+        "ມື້ແກ້ໄຂສໍາເລັດ",
+        "ໝາຍເຫດ",
+        ...Array.from({ length: IMG_COLS }, () => ""),
       ];
+      ws.addRow(headers);
+      ws.columns = [
+        { width: 14 },
+        { width: 28 },
+        { width: 60 },
+        { width: 16 },
+        { width: 14 },
+        { width: 18 },
+        { width: 30 },
+        ...Array.from({ length: IMG_COLS }, () => ({ width: IMG_CELL_PX / 7 })),
+      ];
+      ws.mergeCells(1, 8, 1, 7 + IMG_COLS); // merge the 4 image header cells → single "ຮູບພາບ" label
+      ws.getCell(1, 8).value = "ຮູບພາບ";
 
-      cells.forEach(([v, style], c) => {
-        const addr = XLSX.utils.encode_cell({ r: rowIdx, c });
-        ws[addr] = { v, t: "s", s: style };
+      const headerRow = ws.getRow(1);
+      headerRow.height = 28;
+      headerRow.eachCell((cell) => {
+        cell.font = {
+          bold: true,
+          color: { argb: "FFFFFFFF" },
+          size: 11,
+          name: "Phetsarath OT",
+        };
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FF2563EB" },
+        };
+        cell.alignment = {
+          horizontal: "center",
+          vertical: "middle",
+          wrapText: true,
+        };
+        cell.border = {
+          top: { style: "thin", color: { argb: "FFBFDBFE" } },
+          bottom: { style: "thin", color: { argb: "FFBFDBFE" } },
+          left: { style: "thin", color: { argb: "FFBFDBFE" } },
+          right: { style: "thin", color: { argb: "FFBFDBFE" } },
+        };
       });
 
-      // Auto row height: คำนวณจากความยาว description (ประมาณ 45 ตัวอักษรต่อบรรทัด, 18pt ต่อบรรทัด)
-      const lines = Math.max(1, Math.ceil(issue.description.length / 45));
-      const hpt = Math.max(22, lines * 18);
-      (ws["!rows"] as XLSX.RowInfo[]).push({ hpt });
-    });
+      const statusFill: Record<string, string> = {
+        ສໍາເລັດ: "FFD1FAE5",
+        ກໍາລັງດໍາເນີນ: "FFDBEAFE",
+        ລໍຖ້າ: "FFFEF3C7",
+      };
+      const statusColor: Record<string, string> = {
+        ສໍາເລັດ: "FF065F46",
+        ກໍາລັງດໍາເນີນ: "FF1E40AF",
+        ລໍຖ້າ: "FF92400E",
+      };
+      const thinBorder = {
+        top: { style: "thin" as const, color: { argb: "FFE2E8F0" } },
+        bottom: { style: "thin" as const, color: { argb: "FFE2E8F0" } },
+        left: { style: "thin" as const, color: { argb: "FFE2E8F0" } },
+        right: { style: "thin" as const, color: { argb: "FFE2E8F0" } },
+      };
 
-    const range = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: activeFiltered.length, c: headers.length - 1 } });
-    ws["!ref"] = range;
+      activeFiltered.forEach((issue, r) => {
+        const excelRowNum = r + 2;
+        const row = ws.getRow(excelRowNum);
+        const isEven = r % 2 === 0;
+        const rowBg = isEven ? "FFFFFFFF" : "FFF8FAFC";
+        const status = statusLabel(issue.status);
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Issues");
-    XLSX.writeFile(wb, `Sokxay_Plus_Issue_${new Date().toISOString().split("T")[0]}.xlsx`);
+        const values = [
+          issue.issueCode || `#${issue.no}`,
+          issue.category,
+          issue.description,
+          status,
+          formatDateForExcel(issue.reportedDate) || "-",
+          formatDateForExcel(issue.resolvedDate) || "-",
+          issue.note || "",
+        ];
+        values.forEach((v, c) => {
+          const cell = row.getCell(c + 1);
+          cell.value = v;
+          cell.border = thinBorder;
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: rowBg },
+          };
+          cell.font =
+            c === 0
+              ? {
+                  name: "Courier New",
+                  size: 10,
+                  bold: true,
+                  color: { argb: "FF1E40AF" },
+                }
+              : {
+                  name: "Phetsarath OT",
+                  size: 11,
+                  ...(c === 3
+                    ? {
+                        bold: true,
+                        color: { argb: statusColor[status] ?? "FF334155" },
+                      }
+                    : {}),
+                };
+          cell.alignment =
+            c === 0 || c === 3 || c === 4 || c === 5
+              ? { horizontal: "center", vertical: "middle" }
+              : { vertical: "middle", wrapText: true };
+          if (c === 3)
+            cell.fill = {
+              type: "pattern",
+              pattern: "solid",
+              fgColor: { argb: statusFill[status] ?? rowBg },
+            };
+        });
+        // Fill the merged image-header background style down onto empty image cells too
+        for (let c = 8; c <= 7 + IMG_COLS; c++) {
+          const cell = row.getCell(c);
+          cell.border = thinBorder;
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: rowBg },
+          };
+        }
+
+        // Embed up to IMG_COLS thumbnails (clickable — opens the full-size original in a browser tab)
+        const images = (issue.images ?? []).slice(0, IMG_COLS);
+        images.forEach((url, i) => {
+          const found = imgMap.get(url);
+          if (!found) return;
+          const imageId = wb.addImage({
+            base64: found.base64,
+            extension: found.extension,
+          });
+          ws.addImage(imageId, {
+            tl: { col: 7 + i, row: excelRowNum - 1 },
+            ext: { width: IMG_CELL_PX - 6, height: IMG_CELL_PX - 6 },
+            editAs: "oneCell",
+            hyperlinks: { hyperlink: url, tooltip: "ຄລິກເພື່ອເບິ່ງຮູບໃຫຍ່" },
+          });
+        });
+        const extraCount = (issue.images?.length ?? 0) - IMG_COLS;
+        if (extraCount > 0) {
+          const noteCell = row.getCell(7);
+          noteCell.value = `${issue.note ? issue.note + " " : ""}(+${extraCount} ຮູບເພີ່ມ — ເບິ່ງໃນລະບົບ)`;
+        }
+        if (images.length === 0) {
+          const c = row.getCell(8);
+          c.value = "-";
+          c.font = {
+            name: "Phetsarath OT",
+            size: 10,
+            color: { argb: "FFCBD5E1" },
+          };
+          c.alignment = { horizontal: "center", vertical: "middle" };
+        }
+
+        // Row height: fit either the wrapped description text or the thumbnails, whichever is taller
+        const lines = Math.max(1, Math.ceil(issue.description.length / 45));
+        const textHpt = Math.max(22, lines * 18);
+        const imgHpt = images.length > 0 ? pxToPt(IMG_CELL_PX + 8) : 0;
+        row.height = Math.max(textHpt, imgHpt);
+      });
+
+      const buf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buf], { type: "application/octet-stream" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Sokxay_Plus_Issue_${new Date().toISOString().split("T")[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError("Export ຜິດພາດ: " + (err as Error).message);
+    } finally {
+      setExporting(false);
+    }
   };
 
   // ── Import ──────────────────────────────────────────────────────────────────
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]; if (!file) return;
-    setImporting(true); setImportResult(null);
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    setImportResult(null);
     try {
       const buffer = await file.arrayBuffer();
       const wb = XLSX.read(buffer, { type: "array", cellDates: true });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const raw = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: null, blankrows: false });
-      let headerRowIdx = -1; const colMap: Record<string, number> = {};
+      const raw = XLSX.utils.sheet_to_json<unknown[]>(ws, {
+        header: 1,
+        defval: null,
+        blankrows: false,
+      });
+      let headerRowIdx = -1;
+      const colMap: Record<string, number> = {};
       for (let r = 0; r < raw.length; r++) {
         const row = raw[r] as unknown[];
         const cells = row.map((c) => String(c ?? "").trim());
-        if (cells.some((c) => c === "No" || c === "no") || cells.some((c) => c === "ລາຍການ" || c === "description")) {
-          headerRowIdx = r; cells.forEach((l, i) => { if (l) colMap[l.toLowerCase()] = i; }); break;
+        if (
+          cells.some((c) => c === "No" || c === "no") ||
+          cells.some((c) => c === "ລາຍການ" || c === "description")
+        ) {
+          headerRowIdx = r;
+          cells.forEach((l, i) => {
+            if (l) colMap[l.toLowerCase()] = i;
+          });
+          break;
         }
       }
-      if (headerRowIdx === -1) { headerRowIdx = 0; (raw[0] as unknown[]).map((c) => String(c ?? "").trim()).forEach((l, i) => { if (l) colMap[l.toLowerCase()] = i; }); }
-      const col = (...keys: string[]) => { for (const k of keys) if (colMap[k.toLowerCase()] !== undefined) return colMap[k.toLowerCase()]; return -1; };
-      const iCat=col("ໝວດ","category"), iNo=col("no"), iDesc=col("ລາຍການ","description");
-      const iStat=col("ສະຖານະ","status"), iRep=col("ມື້ສັງລວມ","reporteddate");
-      const iRes=col("ມື້ແກ້ໄຂສໍາເລັດ","resolveddate"), iNote=col("ໝາຍເຫດ","note");
+      if (headerRowIdx === -1) {
+        headerRowIdx = 0;
+        (raw[0] as unknown[])
+          .map((c) => String(c ?? "").trim())
+          .forEach((l, i) => {
+            if (l) colMap[l.toLowerCase()] = i;
+          });
+      }
+      const col = (...keys: string[]) => {
+        for (const k of keys)
+          if (colMap[k.toLowerCase()] !== undefined)
+            return colMap[k.toLowerCase()];
+        return -1;
+      };
+      const iCat = col("ໝວດ", "category"),
+        iNo = col("no"),
+        iDesc = col("ລາຍການ", "description");
+      const iStat = col("ສະຖານະ", "status"),
+        iRep = col("ມື້ສັງລວມ", "reporteddate");
+      const iRes = col("ມື້ແກ້ໄຂສໍາເລັດ", "resolveddate"),
+        iNote = col("ໝາຍເຫດ", "note");
       const dataRows = raw.slice(headerRowIdx + 1) as unknown[][];
-      let imported=0, skipped=0;
+      let imported = 0,
+        skipped = 0;
       const usedNos = new Set(issues.map((i) => i.no));
       let nextAvail = Math.max(0, ...Array.from(usedNos)) + 1;
       const usedCodes = new Set(issues.map((i) => i.issueCode).filter(Boolean));
       let lastCat = "";
-      const getNextNo = () => { while (usedNos.has(nextAvail)) nextAvail++; const n=nextAvail; usedNos.add(n); nextAvail++; return n; };
-      const getUniqueCode = () => { let c = generateIssueCode(); while (usedCodes.has(c)) c = generateIssueCode(); usedCodes.add(c); return c; };
+      const getNextNo = () => {
+        while (usedNos.has(nextAvail)) nextAvail++;
+        const n = nextAvail;
+        usedNos.add(n);
+        nextAvail++;
+        return n;
+      };
+      const getUniqueCode = () => {
+        let c = generateIssueCode();
+        while (usedCodes.has(c)) c = generateIssueCode();
+        usedCodes.add(c);
+        return c;
+      };
       for (const row of dataRows) {
-        const gc = (idx: number) => idx >= 0 && row[idx] != null ? String(row[idx]).trim() : "";
-        const rawCat = gc(iCat); if (rawCat) lastCat = rawCat;
-        const desc = gc(iDesc); if (!desc) { skipped++; continue; }
+        const gc = (idx: number) =>
+          idx >= 0 && row[idx] != null ? String(row[idx]).trim() : "";
+        const rawCat = gc(iCat);
+        if (rawCat) lastCat = rawCat;
+        const desc = gc(iDesc);
+        if (!desc) {
+          skipped++;
+          continue;
+        }
         const no = getNextNo();
         const issueCode = getUniqueCode();
-        await addIssue({ no, issueCode, category: lastCat||"ອື່ນໆ", description: desc,
-          status: parseStatus(iStat>=0?row[iStat]:""),
-          reportedDate: parseExcelDate(iRep>=0?row[iRep]:null),
-          resolvedDate: parseExcelDate(iRes>=0?row[iRes]:null),
-          note: gc(iNote) });
+        await addIssue({
+          no,
+          issueCode,
+          category: lastCat || "ອື່ນໆ",
+          description: desc,
+          status: parseStatus(iStat >= 0 ? row[iStat] : ""),
+          reportedDate: parseExcelDate(iRep >= 0 ? row[iRep] : null),
+          resolvedDate: parseExcelDate(iRes >= 0 ? row[iRes] : null),
+          note: gc(iNote),
+        });
         imported++;
       }
-      const s = skipped>0?` (ຂ້າມ ${skipped} ຫວ່າງ)`:"";
+      const s = skipped > 0 ? ` (ຂ້າມ ${skipped} ຫວ່າງ)` : "";
       setImportResult(`✅ Import ສໍາເລັດ: ${imported} ລາຍການ${s}`);
-      if (user) logActivity({ uid: user.uid, displayName: user.displayName, email: user.email, action: "issue_import", detail: `${imported} ລາຍການ` });
-    } catch (err) { setError("Import ຜິດພາດ: "+(err as Error).message); }
-    finally { setImporting(false); if (fileInputRef.current) fileInputRef.current.value=""; }
+      if (user)
+        logActivity({
+          uid: user.uid,
+          displayName: user.displayName,
+          email: user.email,
+          action: "issue_import",
+          detail: `${imported} ລາຍການ`,
+        });
+    } catch (err) {
+      setError("Import ຜິດພາດ: " + (err as Error).message);
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   // ── CRUD ────────────────────────────────────────────────────────────────────
@@ -292,75 +621,117 @@ export default function IssuesPage() {
     try {
       if (editingIssue?.id) {
         await updateIssue(editingIssue.id, data);
-        if (user) logActivity({ uid: user.uid, displayName: user.displayName, email: user.email, action: "issue_edit", detail: data.description?.slice(0, 50) });
+        if (user)
+          logActivity({
+            uid: user.uid,
+            displayName: user.displayName,
+            email: user.email,
+            action: "issue_edit",
+            detail: data.description?.slice(0, 50),
+          });
       } else {
         await addIssue({ ...data, issueCode: previewCode });
-        if (user) logActivity({ uid: user.uid, displayName: user.displayName, email: user.email, action: "issue_add", detail: data.description?.slice(0, 50) });
+        if (user)
+          logActivity({
+            uid: user.uid,
+            displayName: user.displayName,
+            email: user.email,
+            action: "issue_add",
+            detail: data.description?.slice(0, 50),
+          });
       }
-      setShowModal(false); setEditingIssue(null);
-    } catch (err) { setError("ເກີດຂໍ້ຜິດພາດ: "+(err as Error).message); }
+      setShowModal(false);
+      setEditingIssue(null);
+    } catch (err) {
+      setError("ເກີດຂໍ້ຜິດພາດ: " + (err as Error).message);
+    }
   };
 
   const handleDelete = async () => {
     if (!deleteConfirm) return;
     try {
       await softDeleteIssue(deleteConfirm.id);
-      if (user) logActivity({ uid: user.uid, displayName: user.displayName, email: user.email, action: "issue_delete", detail: deleteConfirm.id });
+      if (user)
+        logActivity({
+          uid: user.uid,
+          displayName: user.displayName,
+          email: user.email,
+          action: "issue_delete",
+          detail: deleteConfirm.id,
+        });
       setDeleteConfirm(null);
-    } catch (err) { setError("ເກີດຂໍ້ຜິດພາດ: "+(err as Error).message); }
+    } catch (err) {
+      setError("ເກີດຂໍ້ຜິດພາດ: " + (err as Error).message);
+    }
   };
 
   const handleRestore = async (id: string) => {
-    try { await restoreIssue(id); }
-    catch (err) { setError("ຄືນຄ່າຜິດພາດ: "+(err as Error).message); }
+    try {
+      await restoreIssue(id);
+    } catch (err) {
+      setError("ຄືນຄ່າຜິດພາດ: " + (err as Error).message);
+    }
   };
 
   const handleBulkSoftDelete = async () => {
     try {
       await Promise.all(Array.from(selected).map((id) => softDeleteIssue(id)));
-      setSelected(new Set()); setBulkDeleteConfirm(false);
-    } catch (err) { setError("ລຶບຜິດພາດ: "+(err as Error).message); }
+      setSelected(new Set());
+      setBulkDeleteConfirm(false);
+    } catch (err) {
+      setError("ລຶບຜິດພາດ: " + (err as Error).message);
+    }
   };
 
   const handleBulkRestore = async () => {
     try {
       await Promise.all(Array.from(selected).map((id) => restoreIssue(id)));
-      setSelected(new Set()); setBulkDeleteConfirm(false);
-    } catch (err) { setError("ຄືນຄ່າຜິດພາດ: "+(err as Error).message); }
+      setSelected(new Set());
+      setBulkDeleteConfirm(false);
+    } catch (err) {
+      setError("ຄືນຄ່າຜິດພາດ: " + (err as Error).message);
+    }
   };
-
-
 
   const nextNo = useMemo(() => {
     const used = new Set(issues.map((i) => i.no));
     let n = Math.max(0, ...Array.from(used)) + 1;
-    while (used.has(n)) n++; return n;
+    while (used.has(n)) n++;
+    return n;
   }, [issues]);
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64 text-slate-400">
-      <RefreshCw size={28} className="animate-spin mr-3 text-blue-500" />
-      <span className="text-sm">ກໍາລັງໂຫຼດ...</span>
-    </div>
-  );
+  if (loading)
+    return (
+      <div className="flex items-center justify-center h-64 text-slate-400">
+        <RefreshCw size={28} className="animate-spin mr-3 text-blue-500" />
+        <span className="text-sm">ກໍາລັງໂຫຼດ...</span>
+      </div>
+    );
 
   return (
     <div className="space-y-4">
-
       {/* ── Tabs ── */}
       <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl w-fit">
-        <button onClick={() => switchTab("active")}
+        <button
+          onClick={() => switchTab("active")}
           className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-            tab === "active" ? "bg-white shadow text-slate-800" : "text-slate-500 hover:text-slate-700"
-          }`}>
+            tab === "active"
+              ? "bg-white shadow text-slate-800"
+              : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
           ລາຍການ ({issues.length})
         </button>
         {isAdmin && (
-          <button onClick={() => switchTab("trash")}
+          <button
+            onClick={() => switchTab("trash")}
             className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              tab === "trash" ? "bg-white shadow text-red-700" : "text-slate-500 hover:text-slate-700"
-            }`}>
-            <Trash2 size={13}/>
+              tab === "trash"
+                ? "bg-white shadow text-red-700"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            <Trash2 size={13} />
             ຖັງຂີ້ເຫຍື່ອ
             {deletedIssues.length > 0 && (
               <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full leading-none">
@@ -375,28 +746,60 @@ export default function IssuesPage() {
       {tab === "active" && (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleImportFile} className="hidden" />
-            {perm("issue_import") && <button onClick={() => fileInputRef.current?.click()} disabled={importing}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors disabled:opacity-50">
-              <Upload size={13} />
-              <span className="hidden sm:inline">{importing?"ກໍາລັງ Import...":"Import Excel"}</span>
-              <span className="sm:hidden">Import</span>
-            </button>}
-            {perm("issue_export") && <button onClick={handleExport} disabled={activeFiltered.length===0}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50">
-              <Download size={13} />
-              <span className="hidden sm:inline">Export Excel</span>
-              <span className="sm:hidden">Export</span>
-            </button>}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleImportFile}
+              className="hidden"
+            />
+            {perm("issue_import") && (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={importing}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors disabled:opacity-50"
+              >
+                <Upload size={13} />
+                <span className="hidden sm:inline">
+                  {importing ? "ກໍາລັງ Import..." : "Import Excel"}
+                </span>
+                <span className="sm:hidden">Import</span>
+              </button>
+            )}
+            {perm("issue_export") && (
+              <button
+                onClick={handleExport}
+                disabled={activeFiltered.length === 0 || exporting}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50"
+              >
+                {exporting ? (
+                  <RefreshCw size={13} className="animate-spin" />
+                ) : (
+                  <Download size={13} />
+                )}
+                <span className="hidden sm:inline">
+                  {exporting ? "ກໍາລັງດາວໂຫຼດຮູບ..." : "Export Excel"}
+                </span>
+                <span className="sm:hidden">
+                  {exporting ? "..." : "Export"}
+                </span>
+              </button>
+            )}
           </div>
           {perm("issue_add") && (
-            <button onClick={() => {
-              const existingCodes = new Set(issues.map((i) => i.issueCode).filter(Boolean));
-              let code = generateIssueCode();
-              while (existingCodes.has(code)) code = generateIssueCode();
-              setPreviewCode(code); setEditingIssue(null); setShowModal(true);
-            }}
-              className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+            <button
+              onClick={() => {
+                const existingCodes = new Set(
+                  issues.map((i) => i.issueCode).filter(Boolean),
+                );
+                let code = generateIssueCode();
+                while (existingCodes.has(code)) code = generateIssueCode();
+                setPreviewCode(code);
+                setEditingIssue(null);
+                setShowModal(true);
+              }}
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+            >
               <Plus size={15} /> ເພີ່ມ Issue
             </button>
           )}
@@ -406,22 +809,36 @@ export default function IssuesPage() {
       {/* ── Trash action bar ── */}
       {tab === "trash" && (
         <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
-          <Trash2 size={15} className="text-amber-500 shrink-0"/>
-          <p className="text-sm text-amber-700 flex-1">ຂໍ້ມູນທີ່ຖືກລົບ — ສາມາດຄືນຄ່າໄດ້ທຸກເວລາ</p>
+          <Trash2 size={15} className="text-amber-500 shrink-0" />
+          <p className="text-sm text-amber-700 flex-1">
+            ຂໍ້ມູນທີ່ຖືກລົບ — ສາມາດຄືນຄ່າໄດ້ທຸກເວລາ
+          </p>
         </div>
       )}
 
       {/* ── Banners ── */}
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-sm text-red-700">
-          <AlertCircle size={16}/>{error}
-          <button onClick={()=>setError(null)} className="ml-auto text-red-400 hover:text-red-600">✕</button>
+          <AlertCircle size={16} />
+          {error}
+          <button
+            onClick={() => setError(null)}
+            className="ml-auto text-red-400 hover:text-red-600"
+          >
+            ✕
+          </button>
         </div>
       )}
       {importResult && (
         <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-sm text-emerald-700">
-          <CheckCircle2 size={16}/>{importResult}
-          <button onClick={()=>setImportResult(null)} className="ml-auto text-emerald-400 hover:text-emerald-600">✕</button>
+          <CheckCircle2 size={16} />
+          {importResult}
+          <button
+            onClick={() => setImportResult(null)}
+            className="ml-auto text-emerald-400 hover:text-emerald-600"
+          >
+            ✕
+          </button>
         </div>
       )}
 
@@ -429,13 +846,39 @@ export default function IssuesPage() {
       {tab === "active" && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { label:"ທັງໝົດ",    value:stats.total,       color:"bg-slate-100 text-slate-700",    icon:<BarChart3 size={16}/> },
-            { label:"ລໍຖ້າ",      value:stats.pending,     color:"bg-amber-50 text-amber-700",     icon:<Clock size={16}/> },
-            { label:"ດໍາເນີນການ", value:stats.in_progress, color:"bg-blue-50 text-blue-700",       icon:<RefreshCw size={16}/> },
-            { label:"ສໍາເລັດ",    value:stats.done,        color:"bg-emerald-50 text-emerald-700", icon:<CheckCircle2 size={16}/> },
+            {
+              label: "ທັງໝົດ",
+              value: stats.total,
+              color: "bg-slate-100 text-slate-700",
+              icon: <BarChart3 size={16} />,
+            },
+            {
+              label: "ລໍຖ້າ",
+              value: stats.pending,
+              color: "bg-amber-50 text-amber-700",
+              icon: <Clock size={16} />,
+            },
+            {
+              label: "ດໍາເນີນການ",
+              value: stats.in_progress,
+              color: "bg-blue-50 text-blue-700",
+              icon: <RefreshCw size={16} />,
+            },
+            {
+              label: "ສໍາເລັດ",
+              value: stats.done,
+              color: "bg-emerald-50 text-emerald-700",
+              icon: <CheckCircle2 size={16} />,
+            },
           ].map((s) => (
-            <div key={s.label} className={`${s.color} rounded-xl p-4 flex items-center justify-between`}>
-              <div><p className="text-xs opacity-70 mb-0.5">{s.label}</p><p className="text-2xl font-bold">{s.value}</p></div>
+            <div
+              key={s.label}
+              className={`${s.color} rounded-xl p-4 flex items-center justify-between`}
+            >
+              <div>
+                <p className="text-xs opacity-70 mb-0.5">{s.label}</p>
+                <p className="text-2xl font-bold">{s.value}</p>
+              </div>
               <div className="opacity-60">{s.icon}</div>
             </div>
           ))}
@@ -446,24 +889,46 @@ export default function IssuesPage() {
       <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4">
         <div className="flex flex-wrap gap-2 sm:gap-3">
           <div className="relative flex-1 min-w-[160px]">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
-            <input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="ຄົ້ນຫາ..."
-              className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+            <Search
+              size={14}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="ຄົ້ນຫາ..."
+              className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
           {tab === "active" && (
             <>
-              <Filter size={14} className="self-center text-slate-400 hidden sm:block"/>
-              <select value={filterStatus} onChange={(e)=>setFilterStatus(e.target.value as FilterStatus)}
-                className="border border-slate-200 rounded-lg px-2 sm:px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <Filter
+                size={14}
+                className="self-center text-slate-400 hidden sm:block"
+              />
+              <select
+                value={filterStatus}
+                onChange={(e) =>
+                  setFilterStatus(e.target.value as FilterStatus)
+                }
+                className="border border-slate-200 rounded-lg px-2 sm:px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
                 <option value="all">ທຸກສະຖານະ</option>
                 <option value="pending">ລໍຖ້າ</option>
                 <option value="in_progress">ດໍາເນີນການ</option>
                 <option value="done">ສໍາເລັດ</option>
               </select>
-              <select value={filterCategory} onChange={(e)=>setFilterCategory(e.target.value)}
-                className="border border-slate-200 rounded-lg px-2 sm:px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-[160px] sm:max-w-[200px]">
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="border border-slate-200 rounded-lg px-2 sm:px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-[160px] sm:max-w-[200px]"
+              >
                 <option value="all">ທຸກໝວດ</option>
-                {allCategories.map((c)=><option key={c} value={c}>{c}</option>)}
+                {allCategories.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
               </select>
             </>
           )}
@@ -473,20 +938,31 @@ export default function IssuesPage() {
       {/* ── Bulk action bar ── */}
       {selected.size > 0 && (
         <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">
-          <span className="text-sm font-medium text-red-700">ເລືອກ {selected.size} ລາຍການ</span>
+          <span className="text-sm font-medium text-red-700">
+            ເລືອກ {selected.size} ລາຍການ
+          </span>
           {tab === "active" && isAdmin && (
-            <button onClick={()=>setBulkDeleteConfirm(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 transition-colors">
-              <Trash2 size={13}/> ລຶບທີ່ເລືອກ
+            <button
+              onClick={() => setBulkDeleteConfirm(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 transition-colors"
+            >
+              <Trash2 size={13} /> ລຶບທີ່ເລືອກ
             </button>
           )}
           {tab === "trash" && isAdmin && (
-            <button onClick={()=>setBulkDeleteConfirm(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white text-xs font-medium rounded-lg hover:bg-emerald-600 transition-colors">
-              <RotateCcw size={13}/> ຄືນຄ່າທີ່ເລືອກ
+            <button
+              onClick={() => setBulkDeleteConfirm(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white text-xs font-medium rounded-lg hover:bg-emerald-600 transition-colors"
+            >
+              <RotateCcw size={13} /> ຄືນຄ່າທີ່ເລືອກ
             </button>
           )}
-          <button onClick={()=>setSelected(new Set())} className="ml-auto text-xs text-red-400 hover:text-red-600">ຍົກເລີກ</button>
+          <button
+            onClick={() => setSelected(new Set())}
+            className="ml-auto text-xs text-red-400 hover:text-red-600"
+          >
+            ຍົກເລີກ
+          </button>
         </div>
       )}
 
@@ -494,10 +970,13 @@ export default function IssuesPage() {
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-            <AlertCircle size={40} className="mb-3 opacity-40"/>
+            <AlertCircle size={40} className="mb-3 opacity-40" />
             <p className="text-sm">
-              {tab === "trash" ? "ຖັງຂີ້ເຫຍື່ອຫວ່າງ" :
-                issues.length===0 ? 'ຍັງບໍ່ມີຂໍ້ມູນ — ກົດ "Import Excel" ຫຼື "ເພີ່ມ Issue"' : "ບໍ່ພົບຂໍ້ມູນທີ່ຄົ້ນຫາ"}
+              {tab === "trash"
+                ? "ຖັງຂີ້ເຫຍື່ອຫວ່າງ"
+                : issues.length === 0
+                  ? 'ຍັງບໍ່ມີຂໍ້ມູນ — ກົດ "Import Excel" ຫຼື "ເພີ່ມ Issue"'
+                  : "ບໍ່ພົບຂໍ້ມູນທີ່ຄົ້ນຫາ"}
             </p>
           </div>
         ) : (
@@ -507,18 +986,38 @@ export default function IssuesPage() {
                 <tr className="bg-slate-50 border-b border-slate-200">
                   {isAdmin && (
                     <th className="px-3 py-3 w-10">
-                      <input type="checkbox" checked={allChecked}
-                        ref={(el)=>{ if(el) el.indeterminate=someChecked&&!allChecked; }}
+                      <input
+                        type="checkbox"
+                        checked={allChecked}
+                        ref={(el) => {
+                          if (el) el.indeterminate = someChecked && !allChecked;
+                        }}
                         onChange={toggleAll}
-                        className="w-4 h-4 rounded border-slate-300 accent-blue-600 cursor-pointer"/>
+                        className="w-4 h-4 rounded border-slate-300 accent-blue-600 cursor-pointer"
+                      />
                     </th>
                   )}
-                  <th className="text-left px-2 py-3 text-xs font-semibold text-slate-500 uppercase w-28">ລະຫັດ</th>
-                  <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase">ໝວດ</th>
-                  <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase">ລາຍການ</th>
-                  <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase w-28">ສະຖານະ</th>
-                  <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase w-24">ມື້ສັງລວມ ↑</th>
-                  <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase w-24">ແກ້ໄຂສໍາເລັດ</th>
+                  <th className="text-left px-2 py-3 text-xs font-semibold text-slate-500 uppercase w-28">
+                    ລະຫັດ
+                  </th>
+                  <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase">
+                    ໝວດ
+                  </th>
+                  <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase">
+                    ລາຍການ
+                  </th>
+                  <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase w-16">
+                    ຮູບ
+                  </th>
+                  <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase w-28">
+                    ສະຖານະ
+                  </th>
+                  <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase w-24">
+                    ມື້ສັງລວມ ↑
+                  </th>
+                  <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase w-24">
+                    ແກ້ໄຂສໍາເລັດ
+                  </th>
                   <th className="px-3 py-3 w-24"></th>
                 </tr>
               </thead>
@@ -527,25 +1026,60 @@ export default function IssuesPage() {
                   const isSel = selected.has(issue.id!);
                   const isDone = issue.status === "done";
                   return (
-                    <tr key={issue.id} className={`transition-colors ${isSel?"bg-blue-50":"hover:bg-slate-50/50"} ${tab==="trash"?"opacity-70":""}`}>
+                    <tr
+                      key={issue.id}
+                      className={`transition-colors ${isSel ? "bg-blue-50" : "hover:bg-slate-50/50"} ${tab === "trash" ? "opacity-70" : ""}`}
+                    >
                       {isAdmin && (
                         <td className="px-3 py-3">
-                          <input type="checkbox" checked={isSel} onChange={()=>toggleOne(issue.id!)}
-                            className="w-4 h-4 rounded border-slate-300 accent-blue-600 cursor-pointer"/>
+                          <input
+                            type="checkbox"
+                            checked={isSel}
+                            onChange={() => toggleOne(issue.id!)}
+                            className="w-4 h-4 rounded border-slate-300 accent-blue-600 cursor-pointer"
+                          />
                         </td>
                       )}
-                      <td className="px-2 py-3 text-slate-400 font-mono text-xs">{issue.issueCode || `#${issue.no}`}</td>
+                      <td className="px-2 py-3 text-slate-400 font-mono text-xs">
+                        {issue.issueCode || `#${issue.no}`}
+                      </td>
                       <td className="px-3 py-3">
-                        <span className="inline-block bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded-md whitespace-nowrap">{issue.category}</span>
+                        <span className="inline-block bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded-md whitespace-nowrap">
+                          {issue.category}
+                        </span>
                       </td>
                       <td className="px-3 py-3 text-slate-700 max-w-xs">
-                        <p className="line-clamp-2 leading-relaxed">{issue.description}</p>
-                        {issue.note && <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">📝 {issue.note}</p>}
+                        <p className="line-clamp-2 leading-relaxed">
+                          {issue.description}
+                        </p>
+                        {issue.note && (
+                          <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">
+                            📝 {issue.note}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-3 py-3">
+                        {issue.images && issue.images.length > 0 ? (
+                          <div className="flex items-center gap-1">
+                            <ImageCell
+                              src={issue.images[0]}
+                              alt={issue.description}
+                              className="h-10 w-10"
+                            />
+                            {issue.images.length > 1 && (
+                              <span className="text-[10px] text-slate-400 font-medium">
+                                +{issue.images.length - 1}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-slate-300 text-xs">-</span>
+                        )}
                       </td>
                       <td className="px-3 py-3">
                         {isDone ? (
                           <span className="inline-flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-medium">
-                            <CheckCircle2 size={11}/> ສໍາເລັດ
+                            <CheckCircle2 size={11} /> ສໍາເລັດ
                           </span>
                         ) : issue.status === "in_progress" ? (
                           <span className="inline-flex items-center gap-1 text-xs text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full font-medium">
@@ -557,39 +1091,61 @@ export default function IssuesPage() {
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-3 text-slate-500 text-xs whitespace-nowrap">{formatDate(issue.reportedDate)}</td>
+                      <td className="px-3 py-3 text-slate-500 text-xs whitespace-nowrap">
+                        {formatDate(issue.reportedDate)}
+                      </td>
                       <td className="px-3 py-3 text-xs whitespace-nowrap">
-                        {issue.resolvedDate
-                          ? <span className="text-emerald-600 font-medium">{formatDate(issue.resolvedDate)}</span>
-                          : <span className="text-slate-300">-</span>}
+                        {issue.resolvedDate ? (
+                          <span className="text-emerald-600 font-medium">
+                            {formatDate(issue.resolvedDate)}
+                          </span>
+                        ) : (
+                          <span className="text-slate-300">-</span>
+                        )}
                       </td>
                       <td className="px-3 py-3">
                         <div className="flex items-center justify-end gap-1">
                           {tab === "active" && (
                             <>
-                              <button onClick={()=>setPreviewIssue(issue)}
-                                className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors" title="Preview">
-                                <Eye size={13}/>
+                              <button
+                                onClick={() => setPreviewIssue(issue)}
+                                className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
+                                title="Preview"
+                              >
+                                <Eye size={13} />
                               </button>
                               {perm("issue_edit") && (
-                                <button onClick={()=>{ setEditingIssue(issue); setShowModal(true); }}
-                                  className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                                  <Pencil size={13}/>
+                                <button
+                                  onClick={() => {
+                                    setEditingIssue(issue);
+                                    setShowModal(true);
+                                  }}
+                                  className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                >
+                                  <Pencil size={13} />
                                 </button>
                               )}
                               {isAdmin && (
-                                <button onClick={()=>setDeleteConfirm({ id: issue.id! })}
-                                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="ລຶບ (ໄປຖັງຂີ້ເຫຍື່ອ)">
-                                  <Trash2 size={13}/>
+                                <button
+                                  onClick={() =>
+                                    setDeleteConfirm({ id: issue.id! })
+                                  }
+                                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                  title="ລຶບ (ໄປຖັງຂີ້ເຫຍື່ອ)"
+                                >
+                                  <Trash2 size={13} />
                                 </button>
                               )}
                             </>
                           )}
                           {tab === "trash" && isAdmin && (
                             <>
-                              <button onClick={()=>handleRestore(issue.id!)}
-                                className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="ຄືນຄ່າ">
-                                <RotateCcw size={13}/>
+                              <button
+                                onClick={() => handleRestore(issue.id!)}
+                                className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                title="ຄືນຄ່າ"
+                              >
+                                <RotateCcw size={13} />
                               </button>
                             </>
                           )}
@@ -604,7 +1160,15 @@ export default function IssuesPage() {
         )}
         {filtered.length > 0 && (
           <div className="px-4 py-3 border-t border-slate-100 text-xs text-slate-400 flex justify-between">
-            <span>ສະແດງ {filtered.length} {tab==="trash"?"(ຖັງຂີ້ເຫຍື່ອ)":"/ "+issues.length} ລາຍການ{selected.size>0&&<span className="ml-2 text-blue-500 font-medium">· ເລືອກ {selected.size}</span>}</span>
+            <span>
+              ສະແດງ {filtered.length}{" "}
+              {tab === "trash" ? "(ຖັງຂີ້ເຫຍື່ອ)" : "/ " + issues.length} ລາຍການ
+              {selected.size > 0 && (
+                <span className="ml-2 text-blue-500 font-medium">
+                  · ເລືອກ {selected.size}
+                </span>
+              )}
+            </span>
             <span>ອັບເດດ: {new Date().toLocaleDateString("lo-LA")}</span>
           </div>
         )}
@@ -612,7 +1176,10 @@ export default function IssuesPage() {
 
       {/* ── Preview Modal ── */}
       {previewIssue && (
-        <PreviewModal issue={previewIssue} onClose={() => setPreviewIssue(null)} />
+        <PreviewModal
+          issue={previewIssue}
+          onClose={() => setPreviewIssue(null)}
+        />
       )}
 
       {/* ── Issue Modal ── */}
@@ -623,7 +1190,10 @@ export default function IssuesPage() {
           previewCode={editingIssue ? undefined : previewCode}
           existingCategories={allCategories}
           onSave={handleSave}
-          onClose={()=>{ setShowModal(false); setEditingIssue(null); }}
+          onClose={() => {
+            setShowModal(false);
+            setEditingIssue(null);
+          }}
         />
       )}
 
@@ -632,16 +1202,25 @@ export default function IssuesPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full">
             <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Trash2 size={20} className="text-amber-500"/>
+              <Trash2 size={20} className="text-amber-500" />
             </div>
-            <h3 className="text-center font-semibold text-slate-800 mb-2">ລຶບ Issue ນີ້?</h3>
+            <h3 className="text-center font-semibold text-slate-800 mb-2">
+              ລຶບ Issue ນີ້?
+            </h3>
             <p className="text-center text-sm text-slate-500 mb-5">
               ຂໍ້ມູນຈະໄປຢູ່ຖັງຂີ້ເຫຍື່ອ ສາມາດຄືນຄ່າໄດ້ພາຍຫຼັງ
             </p>
             <div className="flex gap-3">
-              <button onClick={()=>setDeleteConfirm(null)} className="flex-1 border border-slate-200 rounded-lg py-2 text-sm hover:bg-slate-50">ຍົກເລີກ</button>
-              <button onClick={handleDelete}
-                className="flex-1 text-white rounded-lg py-2 text-sm font-medium bg-amber-500 hover:bg-amber-600">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 border border-slate-200 rounded-lg py-2 text-sm hover:bg-slate-50"
+              >
+                ຍົກເລີກ
+              </button>
+              <button
+                onClick={handleDelete}
+                className="flex-1 text-white rounded-lg py-2 text-sm font-medium bg-amber-500 hover:bg-amber-600"
+              >
                 ລຶບ
               </button>
             </div>
@@ -654,20 +1233,38 @@ export default function IssuesPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full">
             <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              {tab === "trash" ? <RotateCcw size={20} className="text-emerald-600"/> : <Trash2 size={20} className="text-amber-500"/>}
+              {tab === "trash" ? (
+                <RotateCcw size={20} className="text-emerald-600" />
+              ) : (
+                <Trash2 size={20} className="text-amber-500" />
+              )}
             </div>
             <h3 className="text-center font-semibold text-slate-800 mb-2">
-              {tab === "trash" ? `ຄືນຄ່າ ${selected.size} ລາຍການ?` : `ລຶບ ${selected.size} ລາຍການ?`}
+              {tab === "trash"
+                ? `ຄືນຄ່າ ${selected.size} ລາຍການ?`
+                : `ລຶບ ${selected.size} ລາຍການ?`}
             </h3>
             <p className="text-center text-sm text-slate-500 mb-5">
-              {tab === "trash" ? "ຂໍ້ມູນຈະຖືກຄືນຄ່າໄປຍັງລາຍການຫຼັກ" : "ຂໍ້ມູນຈະໄປຢູ່ຖັງຂີ້ເຫຍື່ອ"}
+              {tab === "trash"
+                ? "ຂໍ້ມູນຈະຖືກຄືນຄ່າໄປຍັງລາຍການຫຼັກ"
+                : "ຂໍ້ມູນຈະໄປຢູ່ຖັງຂີ້ເຫຍື່ອ"}
             </p>
             <div className="flex gap-3">
-              <button onClick={()=>setBulkDeleteConfirm(false)} className="flex-1 border border-slate-200 rounded-lg py-2 text-sm hover:bg-slate-50">ຍົກເລີກ</button>
               <button
-                onClick={tab === "trash" ? handleBulkRestore : handleBulkSoftDelete}
-                className={`flex-1 text-white rounded-lg py-2 text-sm font-medium ${tab === "trash" ? "bg-emerald-500 hover:bg-emerald-600" : "bg-amber-500 hover:bg-amber-600"}`}>
-                {tab === "trash" ? `ຄືນຄ່າ ${selected.size} ລາຍການ` : `ລຶບ ${selected.size} ລາຍການ`}
+                onClick={() => setBulkDeleteConfirm(false)}
+                className="flex-1 border border-slate-200 rounded-lg py-2 text-sm hover:bg-slate-50"
+              >
+                ຍົກເລີກ
+              </button>
+              <button
+                onClick={
+                  tab === "trash" ? handleBulkRestore : handleBulkSoftDelete
+                }
+                className={`flex-1 text-white rounded-lg py-2 text-sm font-medium ${tab === "trash" ? "bg-emerald-500 hover:bg-emerald-600" : "bg-amber-500 hover:bg-amber-600"}`}
+              >
+                {tab === "trash"
+                  ? `ຄືນຄ່າ ${selected.size} ລາຍການ`
+                  : `ລຶບ ${selected.size} ລາຍການ`}
               </button>
             </div>
           </div>
