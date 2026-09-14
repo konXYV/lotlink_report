@@ -33,7 +33,6 @@ import { handleRewardPayoutByDraw } from "./handlers/reward_payout.handler";
 // BCEL reconciliation
 import {
   handleBcelRewardSummary,
-  handleBcelTax5Items,
   handleBcelOtherItems,
   handleBankReconciliation,
 } from "./handlers/bcel.handler";
@@ -155,8 +154,6 @@ export async function GET(req: NextRequest) {
       // ── BCEL Reconciliation ───────────────────────────────────────────────
       case "bcel_reward_summary":
         return await handleBcelRewardSummary(connection, OPT_OBJ, params);
-      case "bcel_tax5_items":
-        return await handleBcelTax5Items(connection, OPT_OBJ, params);
       case "bcel_other_items":
         return await handleBcelOtherItems(connection, OPT_OBJ, params);
       case "bank_reconciliation":

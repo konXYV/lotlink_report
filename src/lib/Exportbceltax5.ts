@@ -9,10 +9,10 @@
 //  - border sides: { color: CellStyleColor; style?: BorderType }
 //
 //  Layout (ຕາມ template example_reportBCEL.xlsx):
-//  R1-R3  = Title (merged A:K)
+//  R1-R3  = Title (merged A:L)
 //  R4     = blank
-//  R5-R6  = Table header:  A5:A6, B5:B6, C5:F5, H5:J5, K5:K6
-//  R7+    = Data: A-J = DRAWID rows, K = Tax5 items (independent)
+//  R5-R6  = Table header:  A5:A6, B5:B6, C5:F5, H5:J5, K5:K6, L5:L6
+//  R7+    = Data: A-J = DRAWID rows, K = ອາກອນ SCN 5%, L = ອາກອນ SX 5%
 //  SUM    = flexible row after last data row
 //  TOTAL  = SUM+1,  SIG = TOTAL+3
 // ════════════════════════════════════════════════════════════════════════════
@@ -31,20 +31,14 @@ export interface BcelRow {
   ງວດ: string;
   ລາງວັນ: string;
   ໂຊກຊ້ອນໂຊກ: string;
-  ຄ່າທຳນຽມ: string;
   "ໂຊກ Spin": string;
-  ຄ່າທຳນຽມ_SPIN: string;
+  "ຄ່າທຳນຽມ ທຄ": string; // ✅ ລວມ ຄ່າທຳນຽມ + ຄ່າທຳນຽມ SPIN ເຂົ້ານຳກັນ
   "ລາງວັນ SCN": string;
   "ໂຊກຊ້ອນໂຊກ SCN": string;
   "ຄ່າທຳນຽມ SCN": string;
-  "ອາກອນ SCN 5%": string; // ✅ ເພີ່ມໃໝ່
-  "ອາກອນ5%": string;
-}
-
-export interface Tax5Row {
-  BANK_DATE: string;
-  DRAWID: string | number;
-  BANK_CR: number;
+  "ອາກອນ SCN 5%": string;
+  "ອາກອນ SX 5%": string;
+  "ລວມອາກອນ 5%": string; // ✅ ເພີ່ມໃໝ່ — ລວມອາກອນ SCN 5% + SX 5%
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -117,6 +111,15 @@ function sKData(): CellStyle {
     alignment: { horizontal: "center", vertical: "center" },
     numFmt: '_-* #,##0_-;\\-* #,##0_-;_-* "-"??_-;_-@_-',
     border: kBorder(),
+  };
+}
+
+function sLData(): CellStyle {
+  return {
+    font: { name: FONT, sz: 11 },
+    alignment: { horizontal: "center", vertical: "center" },
+    numFmt: '_-* #,##0_-;\\-* #,##0_-;_-* "-"??_-;_-@_-',
+    border: aBorder(),
   };
 }
 
@@ -196,11 +199,7 @@ function monthLabel(s: string): string {
 
 // ── Sheet builder ─────────────────────────────────────────────────────────────
 
-function buildSheet(
-  dateDisplay: string,
-  dataRows: BcelRow[],
-  tax5Items: Tax5Row[],
-): WorkSheet {
+function buildSheet(dateDisplay: string, dataRows: BcelRow[]): WorkSheet {
   const ws: WorkSheet = {};
   const merges: XLSXStyle.Range[] = [];
 
@@ -215,109 +214,112 @@ function buildSheet(
   S(
     0,
     0,
-    C(
-      `ສະຫຼຸບຈ່າຍລາງວັນຫວຍຂອງ (BCEL) ວັນທີ ${dateDisplay}`,
-      sTitle(12, true),
-    ),
+    C(`ສະຫຼຸບຈ່າຍລາງວັນຫວຍຂອງ (BCEL) ວັນທີ ${dateDisplay}`, sTitle(12, true)),
   );
-  M(0, 0, 0, 10);
-  M(1, 0, 1, 10);
-  M(2, 0, 2, 10);
+  M(0, 0, 0, 11);
+  M(1, 0, 1, 11);
+  M(2, 0, 2, 11);
 
   // ── R4: blank ─────────────────────────────────────────────────────────────
   // ── R5: Group header ──────────────────────────────────────────────────────
   S(4, 0, C("ລຳດັບ", sHeader(11)));
   S(4, 1, C("ງວດທີ", sHeader(12)));
   S(4, 2, C("ການຈ່າຍລາງວັນແອັບ Sokxay", sHeader(12)));
-  for (let c = 3; c <= 5; c++) S(4, c, CE(sHeader(12)));
-  S(4, 6, CE(sHeader(11)));
-  S(4, 7, C("ການຈ່າຍລາງວັນແອັບ SCN", sHeader(12)));
-  for (let c = 8; c <= 9; c++) S(4, c, CE(sHeader(12)));
-  S(4, 10, C("ອາກອນ 5%", sHeader(12)));
+  for (let c = 3; c <= 4; c++) S(4, c, CE(sHeader(12)));
+  S(4, 5, CE(sHeader(11)));
+  S(4, 6, C("ການຈ່າຍລາງວັນແອັບ SCN", sHeader(12)));
+  for (let c = 7; c <= 8; c++) S(4, c, CE(sHeader(12)));
+  S(4, 9, C("ອາກອນ SCN 5%", sHeader(12)));
+  S(4, 10, C("ອາກອນ SX 5%", sHeader(12)));
+  S(4, 11, C("ລວມອາກອນ 5%", sHeader(12)));
 
   M(4, 0, 5, 0);
   M(4, 1, 5, 1);
   M(4, 2, 4, 5);
-  M(4, 7, 4, 9);
+  M(4, 6, 4, 8);
+  M(4, 9, 5, 9);
   M(4, 10, 5, 10);
+  M(4, 11, 5, 11);
 
   // ── R6: Sub-column header ─────────────────────────────────────────────────
   S(5, 0, CE(sHeader(11)));
   S(5, 1, CE(sHeader(12)));
   S(5, 2, C("ລາງວັນ", sHeader(11)));
   S(5, 3, C("ໂຊກຊ້ອນໂຊກ", sHeader(11)));
-  S(5, 4, C("ຄ່າທຳນຽມ", sHeader(11)));
-  S(5, 5, C("ໂຊກ Spin", sHeader(11)));
-  S(5, 6, C("ຄ່າທຳນຽມ", sHeader(11)));
-  S(5, 7, C("ລາງວັນ", sHeader(11)));
-  S(5, 8, C("ໂຊກຊ້ອນໂຊກ", sHeader(11)));
-  S(5, 9, C("ຄ່າທຳນຽມ", sHeader(11)));
+  S(5, 4, C("ໂຊກSpin", sHeader(11)));
+  S(5, 5, C("ຄ່າທຳນຽມ ທຄ", sHeader(11)));
+  S(5, 6, C("ລາງວັນ", sHeader(11)));
+  S(5, 7, C("ໂຊກຊ້ອນໂຊກ", sHeader(11)));
+  S(5, 8, C("ຄ່າທຳນຽມ", sHeader(11)));
+  S(5, 9, CE(sHeader(11)));
   S(5, 10, CE(sHeader(11)));
+  S(5, 11, CE(sHeader(11)));
 
   // ── R7+: Data rows ────────────────────────────────────────────────────────
-  const totalRows = Math.max(dataRows.length, tax5Items.length);
+  const totalRows = dataRows.length;
 
   let sumC = 0,
     sumD = 0,
     sumE = 0,
     sumF = 0,
-    sumG = 0,
     sumH = 0,
     sumI = 0,
-    sumJ = 0;
+    sumJ = 0,
+    sumK = 0,
+    sumL = 0,
+    sumM = 0;
   for (const dr of dataRows) {
     sumC += parseNum(dr["ລາງວັນ"]);
     sumD += parseNum(dr["ໂຊກຊ້ອນໂຊກ"]);
-    sumE += parseNum(dr["ຄ່າທຳນຽມ"]);
-    sumF += parseNum(dr["ໂຊກ Spin"]);
-    sumG += parseNum(dr["ຄ່າທຳນຽມ_SPIN"]);
+    sumE += parseNum(dr["ໂຊກ Spin"]);
+    sumF += parseNum(dr["ຄ່າທຳນຽມ ທຄ"]);
     sumH += parseNum(dr["ລາງວັນ SCN"]);
     sumI += parseNum(dr["ໂຊກຊ້ອນໂຊກ SCN"]);
     sumJ += parseNum(dr["ຄ່າທຳນຽມ SCN"]);
+    sumK += parseNum(dr["ອາກອນ SCN 5%"]);
+    sumL += parseNum(dr["ອາກອນ SX 5%"]);
+    sumM += parseNum(dr["ລວມອາກອນ 5%"]);
   }
-  const sumK = tax5Items.reduce((s, t) => s + t.BANK_CR, 0);
 
   for (let i = 0; i < totalRows; i++) {
     const r = 6 + i;
-    const dr = dataRows[i] ?? null;
-    const tx = tax5Items[i] ?? null;
+    const dr = dataRows[i];
 
-    if (dr) {
-      S(
-        r,
-        0,
-        C(i + 1, {
-          font: { name: FONT, sz: 11 },
-          alignment: { horizontal: "center", vertical: "center" },
-          border: aBorder(),
-        }),
-      );
-      S(
-        r,
-        1,
-        C(dr["ງວດ"], {
-          font: { name: FONT, sz: 11 },
-          alignment: { horizontal: "center", vertical: "center" },
-          border: allThin(),
-        }),
-      );
-      const amts = [
-        parseNum(dr["ລາງວັນ"]),
-        parseNum(dr["ໂຊກຊ້ອນໂຊກ"]),
-        parseNum(dr["ຄ່າທຳນຽມ"]),
-        parseNum(dr["ໂຊກ Spin"]),
-        parseNum(dr["ຄ່າທຳນຽມ_SPIN"]),
-        parseNum(dr["ລາງວັນ SCN"]),
-        parseNum(dr["ໂຊກຊ້ອນໂຊກ SCN"]),
-        parseNum(dr["ຄ່າທຳນຽມ SCN"]),
-      ];
-      for (let ci = 0; ci < 8; ci++) S(r, 2 + ci, C(amts[ci], sData("right")));
-    } else {
-      for (let c = 0; c <= 9; c++)
-        S(r, c, CE(c === 0 ? sData("center", true) : sData("right")));
-    }
+    S(
+      r,
+      0,
+      C(i + 1, {
+        font: { name: FONT, sz: 11 },
+        alignment: { horizontal: "center", vertical: "center" },
+        border: aBorder(),
+      }),
+    );
+    S(
+      r,
+      1,
+      C(dr["ງວດ"], {
+        font: { name: FONT, sz: 11 },
+        alignment: { horizontal: "center", vertical: "center" },
+        border: allThin(),
+      }),
+    );
+    const amts = [
+      parseNum(dr["ລາງວັນ"]),
+      parseNum(dr["ໂຊກຊ້ອນໂຊກ"]),
+      parseNum(dr["ໂຊກ Spin"]),
+      parseNum(dr["ຄ່າທຳນຽມ ທຄ"]),
+      parseNum(dr["ລາງວັນ SCN"]),
+      parseNum(dr["ໂຊກຊ້ອນໂຊກ SCN"]),
+      parseNum(dr["ຄ່າທຳນຽມ SCN"]),
+    ];
+    for (let ci = 0; ci < 7; ci++) S(r, 2 + ci, C(amts[ci], sData("right")));
 
-    S(r, 10, tx ? C(tx.BANK_CR, sKData()) : CE(sKData()));
+    const scn5 = parseNum(dr["ອາກອນ SCN 5%"]);
+    const sx5 = parseNum(dr["ອາກອນ SX 5%"]);
+    const total5 = parseNum(dr["ລວມອາກອນ 5%"]);
+    S(r, 9, scn5 ? C(scn5, sKData()) : CE(sKData()));
+    S(r, 10, sx5 ? C(sx5, sLData()) : CE(sLData()));
+    S(r, 11, total5 ? C(total5, sLData()) : CE(sLData()));
   }
 
   // ── SUM row ───────────────────────────────────────────────────────────────
@@ -328,21 +330,22 @@ function buildSheet(
   S(rSum, 3, C(sumD, sSum()));
   S(rSum, 4, C(sumE, sSum()));
   S(rSum, 5, C(sumF, sSum()));
-  S(rSum, 6, C(sumG, sSum()));
-  S(rSum, 7, C(sumH, sSum()));
-  S(rSum, 8, C(sumI, sSum()));
-  S(rSum, 9, C(sumJ, sSum()));
-  S(rSum, 10, C(sumK, sSum()));
+  S(rSum, 6, C(sumH, sSum()));
+  S(rSum, 7, C(sumI, sSum()));
+  S(rSum, 8, C(sumJ, sSum()));
+  S(rSum, 9, C(sumK, sSum()));
+  S(rSum, 10, C(sumL, sSum()));
+  S(rSum, 11, C(sumM, sSum()));
 
   // ── TOTAL row ─────────────────────────────────────────────────────────────
   const rTot = rSum + 1;
-  const grand = sumC + sumD + sumE + sumF + sumG + sumH + sumI + sumJ;
+  const grand = sumC + sumD + sumE + sumF + sumH + sumI + sumJ;
   S(rTot, 0, C("ລວມຈ່າຍທັງໝົດ", sTotalLabel()));
   S(rTot, 1, CE(sTotalLabel()));
   S(rTot, 2, C(grand, sTotalValue()));
   S(rTot, 3, CE(sTotalValue()));
   S(rTot, 4, CE(sTotalValue()));
-  for (let c = 5; c <= 10; c++) S(rTot, c, CE(sTotalLabel()));
+  for (let c = 5; c <= 11; c++) S(rTot, c, CE(sTotalLabel()));
   M(rTot, 0, rTot, 1);
   M(rTot, 2, rTot, 4);
 
@@ -353,7 +356,7 @@ function buildSheet(
     alignment: { horizontal: "center" },
   };
   S(rSig, 4, C("ຜູ້ກວດກາ", sSig));
-  S(rSig, 9, C("ຜູ້ສະຫຼຸບ", sSig));
+  S(rSig, 10, C("ຜູ້ສະຫຼຸບ", sSig));
 
   // ── Metadata ──────────────────────────────────────────────────────────────
   ws["!cols"] = [
@@ -361,11 +364,12 @@ function buildSheet(
     { wch: 13.18 },
     { wch: 23.18 },
     { wch: 22.27 },
-    { wch: 18.27 },
     { wch: 17.54 },
+    { wch: 20.27 },
     { wch: 15.73 },
     { wch: 19.82 },
     { wch: 14.54 },
+    { wch: 16.27 },
     { wch: 16.27 },
     { wch: 19.27 },
   ];
@@ -384,7 +388,7 @@ function buildSheet(
     { hpt: 20.5 },
   ];
   ws["!merges"] = merges;
-  ws["!ref"] = XLSXStyle.utils.encode_range({ r: 0, c: 0 }, { r: rSig, c: 10 });
+  ws["!ref"] = XLSXStyle.utils.encode_range({ r: 0, c: 0 }, { r: rSig, c: 11 });
 
   return ws;
 }
@@ -393,17 +397,17 @@ function buildSheet(
 
 export async function exportBcelTax5(
   bcelRows: BcelRow[],
-  tax5Items: Tax5Row[],
   dateFrom: string,
   dateTo: string,
 ): Promise<void> {
+  // ✅ Export ຂໍ້ມູນທັງໝົດ (ບໍ່ຕັດແຖວອອກ), ບໍ່ວ່າຈະສະແດງໃນຈໍຫຼືບໍ່
   const dataRows = bcelRows.filter((r) => r["ງວດ"] !== "ລວມທັງໝົດ");
   const dateDisplay =
     dateFrom === dateTo
       ? fmtDate(dateFrom)
       : `${fmtDate(dateFrom)} ຫາ ${fmtDate(dateTo)}`;
 
-  const ws = buildSheet(dateDisplay, dataRows, tax5Items);
+  const ws = buildSheet(dateDisplay, dataRows);
   const wb = XLSXStyle.utils.book_new();
   XLSXStyle.utils.book_append_sheet(
     wb,
@@ -414,17 +418,4 @@ export async function exportBcelTax5(
     wb,
     `BCEL_Tax5_${dateFrom || "all"}_to_${dateTo || "all"}.xlsx`,
   );
-}
-
-export async function fetchTax5Rows(
-  dateFrom: string,
-  dateTo: string,
-): Promise<Tax5Row[]> {
-  const qs = new URLSearchParams({ view: "bcel_tax5_items" });
-  if (dateFrom) qs.set("date_from", dateFrom);
-  if (dateTo) qs.set("date_to", dateTo);
-  const res = await fetch(`/api/oracle?${qs}`);
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.error ?? "ດຶງ TAX5 ລົ້ມເຫຼວ");
-  return Array.isArray(json.rows) ? json.rows : [];
 }

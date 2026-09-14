@@ -32,82 +32,46 @@ export async function handleBcelRewardSummary(
 ) {
   const { conditions, binds } = buildBcelDateBinds(params);
   const whereClause = `WHERE ${conditions.join(" AND ")}`;
-  const taxConditions = [
-    `TXN_TYPE IN ('TAX LOTTERY PRIZE','TAX SCN LOTTERY PRIZE')`,
-    ...conditions,
-  ];
 
   const sqlMain = `
-    SELECT t."ງວດ", t."ລາງວັນ", t."ໂຊກຊ້ອນໂຊກ", t."ຄ່າທຳນຽມ",
-           t."ໂຊກ Spin", t."ຄ່າທຳນຽມ_SPIN", t."ລາງວັນ SCN",
-           t."ໂຊກຊ້ອນໂຊກ SCN", t."ຄ່າທຳນຽມ SCN", t."ອາກອນ SCN 5%"
+    SELECT t."ງວດ", t."ລາງວັນ", t."ໂຊກຊ້ອນໂຊກ", t."ໂຊກ Spin", t."ຄ່າທຳນຽມ ທຄ",
+           t."ລາງວັນ SCN", t."ໂຊກຊ້ອນໂຊກ SCN", t."ຄ່າທຳນຽມ SCN",
+           t."ອາກອນ SCN 5%", t."ອາກອນ SX 5%", t."ລວມອາກອນ 5%"
     FROM (
       SELECT
         CASE GROUPING(DRAWID) WHEN 1 THEN 'ລວມທັງໝົດ' ELSE TO_CHAR(DRAWID) END AS "ງວດ",
         TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'LOTTERY PRIZE'           THEN BANK_DR ELSE 0 END), 'FM9,999,999,999,990.00') AS "ລາງວັນ",
         TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'SPLUSPRO'                THEN BANK_DR ELSE 0 END), 'FM9,999,999,999,990.00') AS "ໂຊກຊ້ອນໂຊກ",
-        TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'FEE_LOTTERY PRIZE'       THEN BANK_DR ELSE 0 END), 'FM9,999,999,999,990.00') AS "ຄ່າທຳນຽມ",
         TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'SPLUSPRO_SPIN'           THEN BANK_DR ELSE 0 END), 'FM9,999,999,999,990.00') AS "ໂຊກ Spin",
-        TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'FEE_SPLUSPRO_SPIN'       THEN BANK_DR ELSE 0 END), 'FM9,999,999,999,990.00') AS "ຄ່າທຳນຽມ_SPIN",
+        TO_CHAR(SUM(CASE WHEN TXN_TYPE in ('FEE_LOTTERY PRIZE','FEE_SPLUSPRO_SPIN') THEN BANK_DR ELSE 0 END), 'FM9,999,999,999,990.00') AS "ຄ່າທຳນຽມ ທຄ",
         TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'SCN LOTTERY PRIZE'      THEN BANK_DR ELSE 0 END), 'FM9,999,999,999,990.00') AS "ລາງວັນ SCN",
         TO_CHAR(SUM(CASE WHEN TXN_TYPE in ('SCN BONUS','SCN BONUS ADJUST')              THEN BANK_DR ELSE 0 END), 'FM9,999,999,999,990.00') AS "ໂຊກຊ້ອນໂຊກ SCN",
         TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'FEE_SCN LOTTERY PRIZE'  THEN BANK_DR ELSE 0 END), 'FM9,999,999,999,990.00') AS "ຄ່າທຳນຽມ SCN",
-        TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'TAX SCN LOTTERY PRIZE'   THEN BANK_CR ELSE 0 END), 'FM9,999,999,999,990.00') AS "ອາກອນ SCN 5%"
+        TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'TAX SCN LOTTERY PRIZE'   THEN BANK_CR ELSE 0 END), 'FM9,999,999,999,990.00') AS "ອາກອນ SCN 5%",
+        TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'TAX LOTTERY PRIZE'       THEN BANK_CR ELSE 0 END), 'FM9,999,999,999,990.00') AS "ອາກອນ SX 5%",
+        TO_CHAR(SUM(CASE WHEN TXN_TYPE in ('TAX SCN LOTTERY PRIZE','TAX LOTTERY PRIZE') THEN BANK_CR ELSE 0 END), 'FM9,999,999,999,990.00') AS "ລວມອາກອນ 5%"
       FROM ${VIEWS.BCEL_STMT} ${whereClause} and bank_acct = '2201300002167'
       GROUP BY ROLLUP(DRAWID)
       ORDER BY GROUPING(DRAWID), DRAWID
     ) t`;
 
-  const sqlTax = `
-    SELECT TO_CHAR(SUM(BANK_CR), 'FM9,999,999,999,990.00') AS TAX_TOTAL
-    FROM ${VIEWS.BCEL_STMT}
-    WHERE ${taxConditions.join(" AND ")} and bank_acct = '2201300002167'`;
+  const mainRes = await conn.execute(sqlMain, binds, OPT_OBJ);
 
-  const [mainRes, taxRes] = await Promise.all([
-    conn.execute(sqlMain, binds, OPT_OBJ),
-    conn.execute(sqlTax, binds, OPT_OBJ),
-  ]);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const taxTotal: string = (taxRes.rows?.[0] as any)?.TAX_TOTAL ?? "0.00";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows = (mainRes.rows ?? []).map((r: any) => ({
     ງວດ: r["ງວດ"] ?? "",
     ລາງວັນ: r["ລາງວັນ"] ?? "0.00",
     ໂຊກຊ້ອນໂຊກ: r["ໂຊກຊ້ອນໂຊກ"] ?? "0.00",
-    ຄ່າທຳນຽມ: r["ຄ່າທຳນຽມ"] ?? "0.00",
     "ໂຊກ Spin": r["ໂຊກ Spin"] ?? "0.00",
-    ຄ່າທຳນຽມ_SPIN: r["ຄ່າທຳນຽມ_SPIN"] ?? "0.00",
+    "ຄ່າທຳນຽມ ທຄ": r["ຄ່າທຳນຽມ ທຄ"] ?? "0.00",
     "ລາງວັນ SCN": r["ລາງວັນ SCN"] ?? "0.00",
     "ໂຊກຊ້ອນໂຊກ SCN": r["ໂຊກຊ້ອນໂຊກ SCN"] ?? "0.00",
     "ຄ່າທຳນຽມ SCN": r["ຄ່າທຳນຽມ SCN"] ?? "0.00",
     "ອາກອນ SCN 5%": r["ອາກອນ SCN 5%"] ?? "0.00",
-    "ອາກອນ5%": taxTotal,
+    "ອາກອນ SX 5%": r["ອາກອນ SX 5%"] ?? "0.00",
+    "ລວມອາກອນ 5%": r["ລວມອາກອນ 5%"] ?? "0.00",
   }));
-  return NextResponse.json({ rows, taxTotal });
-}
-
-export async function handleBcelTax5Items(
-  conn: Conn,
-  OPT_OBJ: OPT,
-  params: URLSearchParams,
-) {
-  const { conditions, binds } = buildBcelDateBinds(params);
-  conditions.push(`TXN_TYPE IN ('TAX LOTTERY PRIZE','TAX SCN LOTTERY PRIZE')`);
-  const sql = `
-    SELECT TO_CHAR(BANK_DATE, 'YYYY-MM-DD') AS BANK_DATE, TO_CHAR(DRAWID) AS DRAWID, BANK_CR
-    FROM ${VIEWS.BCEL_STMT}
-    WHERE ${conditions.join(" AND ")}
-    ORDER BY BANK_DATE ASC, BANK_CR DESC`;
-  const result = await conn.execute(sql, binds, OPT_OBJ);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return NextResponse.json({
-    rows: (result.rows ?? []).map((r: any) => ({
-      BANK_DATE: r.BANK_DATE ?? "",
-      DRAWID: r.DRAWID ?? "",
-      BANK_CR: Number(r.BANK_CR ?? 0),
-    })),
-  });
+  return NextResponse.json({ rows });
 }
 
 export async function handleBcelOtherItems(

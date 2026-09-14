@@ -10,12 +10,7 @@ import {
   Filter,
   FileSpreadsheet,
 } from "lucide-react";
-import {
-  exportBcelTax5,
-  fetchTax5Rows,
-  type BcelRow,
-  type Tax5Row,
-} from "@/lib/Exportbceltax5";
+import { exportBcelTax5, type BcelRow } from "@/lib/Exportbceltax5";
 import PageSkeleton from "@/components/PageSkeleton";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -109,7 +104,7 @@ const PRINT_CSS = `
       background: #bdd7ee !important;
       background-color: #bdd7ee !important;
       font-weight: bold !important;
-      border: 2px solid #000 !important;
+      border: 1px solid #000 !important;
     }
 
     thead { display: table-header-group; }
@@ -138,14 +133,14 @@ const COLS: { key: keyof BcelRow; label: string }[] = [
   { key: "ງວດ", label: "ງວດ" },
   { key: "ລາງວັນ", label: "ລາງວັນ" },
   { key: "ໂຊກຊ້ອນໂຊກ", label: "ໂຊກຊ້ອນໂຊກ" },
-  { key: "ຄ່າທຳນຽມ", label: "ຄ່າທຳນຽມ" },
   { key: "ໂຊກ Spin", label: "ໂຊກ Spin" },
-  { key: "ຄ່າທຳນຽມ_SPIN", label: "ຄ່າທຳນຽມ SPIN" },
+  { key: "ຄ່າທຳນຽມ ທຄ", label: "ຄ່າທຳນຽມ ທຄ" },
   { key: "ລາງວັນ SCN", label: "ລາງວັນ SCN" },
   { key: "ໂຊກຊ້ອນໂຊກ SCN", label: "ໂຊກຊ້ອນໂຊກ SCN" },
   { key: "ຄ່າທຳນຽມ SCN", label: "ຄ່າທຳນຽມ SCN" },
   { key: "ອາກອນ SCN 5%", label: "ອາກອນ SCN 5%" },
-  { key: "ອາກອນ5%", label: "ອາກອນ 5%" },
+  { key: "ອາກອນ SX 5%", label: "ອາກອນ SX 5%" },
+  { key: "ລວມອາກອນ 5%", label: "ລວມອາກອນ 5%" },
 ];
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -153,7 +148,6 @@ export default function BcelRewardSummaryPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [rows, setRows] = useState<BcelRow[]>([]);
-  const [tax5Items, setTax5Items] = useState<Tax5Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
@@ -168,7 +162,6 @@ export default function BcelRewardSummaryPage() {
     setLoading(true);
     setError(null);
     try {
-      // Query 1: main summary rows
       const qs = new URLSearchParams({ view: "bcel_reward_summary" });
       if (from) qs.set("date_from", from);
       if (to) qs.set("date_to", to);
@@ -176,10 +169,6 @@ export default function BcelRewardSummaryPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "ດຶງຂໍ້ມູນລົ້ມເຫຼວ");
       setRows(Array.isArray(json.rows) ? json.rows : []);
-
-      // Query 2: tax5 individual items (ຄືກັນກັບ col K ໃນ Excel)
-      const tax5 = await fetchTax5Rows(from, to);
-      setTax5Items(tax5);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -201,7 +190,6 @@ export default function BcelRewardSummaryPage() {
     setAppliedTo("");
     setHasSearched(false);
     setRows([]);
-    setTax5Items([]);
     setError(null);
   };
 
@@ -213,7 +201,8 @@ export default function BcelRewardSummaryPage() {
   const handleExport = async () => {
     setExporting(true);
     try {
-      await exportBcelTax5(rows, tax5Items, appliedFrom, appliedTo);
+      // ✅ Export ຂໍ້ມູນທັງໝົດຈາກ rows (ບໍ່ຕັດແຖວອອກ)
+      await exportBcelTax5(rows, appliedFrom, appliedTo);
     } catch (e) {
       alert("Export ລົ້ມເຫຼວ: " + (e instanceof Error ? e.message : String(e)));
     } finally {
@@ -229,12 +218,14 @@ export default function BcelRewardSummaryPage() {
     const numCols: (keyof BcelRow)[] = [
       "ລາງວັນ",
       "ໂຊກຊ້ອນໂຊກ",
-      "ຄ່າທຳນຽມ",
       "ໂຊກ Spin",
-      "ຄ່າທຳນຽມ_SPIN",
+      "ຄ່າທຳນຽມ ທຄ",
       "ລາງວັນ SCN",
       "ໂຊກຊ້ອນໂຊກ SCN",
       "ຄ່າທຳນຽມ SCN",
+      "ອາກອນ SCN 5%",
+      "ອາກອນ SX 5%",
+      "ລວມອາກອນ 5%",
     ];
     return numCols.some((k) => {
       const v = r[k];
@@ -243,31 +234,18 @@ export default function BcelRewardSummaryPage() {
     });
   };
 
-  // ຮວມ dataRows + tax5Items ໂດຍ index ແລ້ວ filter ອອກຖ້າທັງ 2 ເປັນ 0/ວ່າງ
+  // ຮວມ dataRows ຈາກ allDataRows, filter ອອກຖ້າວ່າງທັງໝົດ
   const dataRows = useMemo(() => {
-    const maxLen = Math.max(allDataRows.length, tax5Items.length);
-    return Array.from({ length: maxLen }, (_, i) => ({
-      row: allDataRows[i] ?? null,
-      tx: tax5Items[i] ?? null,
-      idx: i,
-    })).filter(({ row, tx }) => {
-      const hasRowVal = row ? !!row["ງວດ"] || rowHasValue(row) : false;
-      const hasTxVal = tx ? tx.BANK_CR !== 0 : false;
-      return hasRowVal || hasTxVal;
-    });
+    return allDataRows
+      .map((row, idx) => ({ row, idx }))
+      .filter(({ row }) => !!row["ງວດ"] || rowHasValue(row));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allDataRows, tax5Items]);
+  }, [allDataRows]);
 
   const hasData = hasSearched && dataRows.length > 0;
   const hasFilter = dateFrom || dateTo;
 
-  // ອາກອນ5% total = sum ຂອງ tax5Items ທັງໝົດ (ຄືກັນກັບ Excel)
-  const tax5Total = useMemo(
-    () => tax5Items.reduce((s, t) => s + t.BANK_CR, 0),
-    [tax5Items],
-  );
-
-  // ລວມຈ່າຍທັງໝົດ = ລາງວັນ + ໂຊກຊ້ອນໂຊກ + ຄ່າທຳນຽມ + ໂຊກ Spin + ຄ່າທຳນຽມ SPIN (ຈາກ totalRow)
+  // ລວມຈ່າຍທັງໝົດ = ລາງວັນ + ໂຊກຊ້ອນໂຊກ + ໂຊກ Spin + ຄ່າທຳນຽມ ທຄ + ... (ຈາກ totalRow)
   const parseN = (v: string | number | null | undefined) =>
     parseFloat(String(v ?? "0").replace(/,/g, "")) || 0;
 
@@ -276,12 +254,11 @@ export default function BcelRewardSummaryPage() {
     return (
       parseN(totalRow["ລາງວັນ"]) +
       parseN(totalRow["ໂຊກຊ້ອນໂຊກ"]) +
-      parseN(totalRow["ຄ່າທຳນຽມ"]) +
       parseN(totalRow["ໂຊກ Spin"]) +
-      parseN(totalRow["ຄ່າທຳນຽມ_SPIN"]) +
+      parseN(totalRow["ຄ່າທຳນຽມ ທຄ"]) +
       parseN(totalRow["ລາງວັນ SCN"]) +
       parseN(totalRow["ໂຊກຊ້ອນໂຊກ SCN"]) +
-      parseN(totalRow["ຄ່າທຳນຽມ SCN"]) 
+      parseN(totalRow["ຄ່າທຳນຽມ SCN"])
     );
   }, [totalRow]);
 
@@ -442,7 +419,7 @@ export default function BcelRewardSummaryPage() {
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/sokxay.png"
+              src="/sokxayLogo.png"
               alt="Company Logo"
               style={{ height: "48px", width: "auto", objectFit: "contain" }}
             />
@@ -464,12 +441,6 @@ export default function BcelRewardSummaryPage() {
           className="hidden print:block mb-2"
           style={{ textAlign: "center" }}
         >
-          <div style={{ fontSize: "13px", fontWeight: "bold" }}>
-            ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ
-          </div>
-          <div style={{ fontSize: "11px" }}>
-            ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນາຖາວອນ
-          </div>
           <h1
             style={{
               fontSize: "14px",
@@ -517,7 +488,7 @@ export default function BcelRewardSummaryPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {dataRows.map(({ row, tx }, i) => (
+                  {dataRows.map(({ row }, i) => (
                     <tr key={i} className="hover:bg-blue-50">
                       <td className={TDC}>{i + 1}</td>
                       <td className={TDC + " text-blue-700 font-semibold"}>
@@ -528,13 +499,10 @@ export default function BcelRewardSummaryPage() {
                         {row ? fmtVal(row["ໂຊກຊ້ອນໂຊກ"]) : ""}
                       </td>
                       <td className={TD}>
-                        {row ? fmtVal(row["ຄ່າທຳນຽມ"]) : ""}
-                      </td>
-                      <td className={TD}>
                         {row ? fmtVal(row["ໂຊກ Spin"]) : ""}
                       </td>
                       <td className={TD}>
-                        {row ? fmtVal(row["ຄ່າທຳນຽມ_SPIN"]) : ""}
+                        {row ? fmtVal(row["ຄ່າທຳນຽມ ທຄ"]) : ""}
                       </td>
                       <td className={TD}>
                         {row ? fmtVal(row["ລາງວັນ SCN"]) : ""}
@@ -548,7 +516,12 @@ export default function BcelRewardSummaryPage() {
                       <td className={TD}>
                         {row ? fmtVal(row["ອາກອນ SCN 5%"]) : ""}
                       </td>
-                      <td className={TD}>{tx ? fmtVal(tx.BANK_CR) : ""}</td>
+                      <td className={TD}>
+                        {row ? fmtVal(row["ອາກອນ SX 5%"]) : ""}
+                      </td>
+                      <td className={TD}>
+                        {row ? fmtVal(row["ລວມອາກອນ 5%"]) : ""}
+                      </td>
                     </tr>
                   ))}
 
@@ -568,13 +541,10 @@ export default function BcelRewardSummaryPage() {
                         {fmtVal(totalRow["ໂຊກຊ້ອນໂຊກ"])}
                       </td>
                       <td className={TD + " bg-gray-200 font-bold"}>
-                        {fmtVal(totalRow["ຄ່າທຳນຽມ"])}
-                      </td>
-                      <td className={TD + " bg-gray-200 font-bold"}>
                         {fmtVal(totalRow["ໂຊກ Spin"])}
                       </td>
                       <td className={TD + " bg-gray-200 font-bold"}>
-                        {fmtVal(totalRow["ຄ່າທຳນຽມ_SPIN"])}
+                        {fmtVal(totalRow["ຄ່າທຳນຽມ ທຄ"])}
                       </td>
                       <td className={TD + " bg-gray-200 font-bold"}>
                         {fmtVal(totalRow["ລາງວັນ SCN"])}
@@ -589,12 +559,15 @@ export default function BcelRewardSummaryPage() {
                         {fmtVal(totalRow["ອາກອນ SCN 5%"])}
                       </td>
                       <td className={TD + " bg-gray-200 font-bold"}>
-                        {fmtVal(tax5Total)}
+                        {fmtVal(totalRow["ອາກອນ SX 5%"])}
+                      </td>
+                      <td className={TD + " bg-gray-200 font-bold"}>
+                        {fmtVal(totalRow["ລວມອາກອນ 5%"])}
                       </td>
                     </tr>
                   )}
 
-                  {/* ລວມຈ່າຍທັງໝົດ = ລາງວັນ + ໂຊກຊ້ອນໂຊກ + ຄ່າທຳນຽມ + ໂຊກ Spin + ຄ່າທຳນຽມ SPIN */}
+                  {/* ລວມຈ່າຍທັງໝົດ = ລາງວັນ + ໂຊກຊ້ອນໂຊກ + ໂຊກ Spin + ຄ່າທຳນຽມ ທຄ + ... */}
                   {totalRow && grandTotal > 0 && (
                     <tr className="grand-total-row bg-blue-100 font-bold">
                       <td
@@ -604,8 +577,8 @@ export default function BcelRewardSummaryPage() {
                         ລວມຈ່າຍທັງໝົດ
                       </td>
                       <td
-                        className="px-3 py-2 text-right font-mono font-bold border border-black text-[11px] bg-blue-100"
-                        colSpan={9}
+                        className="px-3 py-2 text-center font-mono font-bold border border-black text-[11px] bg-blue-100"
+                        colSpan={10}
                       >
                         {fmt(grandTotal)}
                       </td>

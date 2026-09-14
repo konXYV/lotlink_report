@@ -73,7 +73,6 @@ export const VALID_VIEWS = [
   "payout_users",
   "reward_payout_by_draw",
   "bcel_reward_summary",
-  "bcel_tax5_items",
   "bank_reconciliation",
   "jdb_reward_summary",
   "jdb_tax5_items",
