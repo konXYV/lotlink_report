@@ -323,10 +323,10 @@ export default function ScnWinSummaryPage() {
   const dataRows = useMemo(() => rows.filter((r) => !isTotal(r)), [rows]);
   const totalRow = useMemo(() => rows.find((r) => isTotal(r)), [rows]);
 
-  // ອາກອນ5% ລາຍການຍ່ອຍ (TAX SCN LOTTERY PRIZE) ສະແດງເປັນລາຍການລົງມາຕາມລໍາດັບ
-  // ໂດຍໃຊ້ແຖວທີ່ມີຢູ່ແລ້ວ (ແຖວງວດ) ກ່ອນ, ຖ້າລາຍການອາກອນຫຼາຍກວ່າຈຳນວນແຖວ
-  // ຈຶ່ງເພີ່ມແຖວຫວ່າງຕໍ່ທ້າຍ — ບໍ່ໄດ້ພະຍາຍາມຈັບຄູ່ກັບງວດ (DRAWID) ຂອງມັນເລີຍ
-  const mainRowCount = Math.max(dataRows.length, taxItems.length);
+  // ອາກອນ5% ຕໍ່ງວດ ໃຊ້ຄ່າ "ອາກອນ5%" ທີ່ Backend ຄິດໄລ່ລວມມາຕາມ DRAWID ແລ້ວ
+  // (ຄືກັນກັບວິທີສະແດງໃນ ສະຫຼຸບລາງວັນ BCEL — REWARD_BCEL_STMT) ແທນທີ່ຈະໃຊ້
+  // ລາຍການ taxItems ແບບຈັບຄູ່ຕາມລໍາດັບ ເຊິ່ງບໍ່ກົງກັບງວດ (DRAWID) ຈິງ
+  const mainRowCount = dataRows.length;
 
   const hasData = hasSearched && dataRows.length > 0;
   const hasFilter = dateFrom || dateTo;
@@ -528,7 +528,6 @@ export default function ScnWinSummaryPage() {
                 <tbody>
                   {Array.from({ length: mainRowCount }).map((_, i) => {
                     const row = dataRows[i];
-                    const taxItem = taxItems[i];
                     return (
                       <tr key={i} className="hover:bg-blue-50">
                         <td className={TDC}>{row ? i + 1 : ""}</td>
@@ -552,11 +551,7 @@ export default function ScnWinSummaryPage() {
                           {row ? fmt(row["ຄ່າທຳນຽມ ທ/ຄ"]) : ""}
                         </td>
                         <td className={TD}>
-                          {taxItem
-                            ? fmt(taxItem.BCEL_CR)
-                            : row
-                              ? fmt(row["ອາກອນ5%"])
-                              : ""}
+                          {row ? fmt(row["ອາກອນ5%"]) : ""}
                         </td>
                       </tr>
                     );

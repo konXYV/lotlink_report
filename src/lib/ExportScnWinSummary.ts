@@ -312,9 +312,10 @@ function buildSheet(
   const dataRows = summaryRows.filter((r) => r["ງວດ"] !== "ລວມ");
   const totalRow = summaryRows.find((r) => r["ງວດ"] === "ລວມ") ?? null;
 
-  // ອາກອນ5% ລາຍການຍ່ອຍ ສະແດງລົງມາຕາມລໍາດັບ ໂດຍໃຊ້ແຖວງວດທີ່ມີຢູ່ແລ້ວກ່ອນ —
-  // ຖ້າລາຍການອາກອນຫຼາຍກວ່າຈຳນວນແຖວ ຈຶ່ງເພີ່ມແຖວຫວ່າງຕໍ່ທ້າຍ (ບໍ່ໄດ້ຈັບຄູ່ກັບງວດ/DRAWID)
-  const mainRowCount = Math.max(dataRows.length, taxItems.length);
+  // ອາກອນ5% ຕໍ່ງວດ ໃຊ້ຄ່າ "ອາກອນ5%" ທີ່ Backend ຄິດໄລ່ລວມມາຕາມ DRAWID ແລ້ວ
+  // (ຄືກັນກັບວິທີສະແດງໃນ ສະຫຼຸບລາງວັນ BCEL — REWARD_BCEL_STMT) ແທນທີ່ຈະໃຊ້
+  // ລາຍການ taxItems ແບບຈັບຄູ່ຕາມລໍາດັບ ເຊິ່ງບໍ່ກົງກັບງວດ (DRAWID) ຈິງ
+  const mainRowCount = dataRows.length;
 
   let sumE = 0,
     sumF = 0,
@@ -325,7 +326,6 @@ function buildSheet(
 
   for (let i = 0; i < mainRowCount; i++) {
     const row = dataRows[i];
-    const taxItem = taxItems[i];
     const r = 4 + i;
 
     if (row) {
@@ -352,9 +352,7 @@ function buildSheet(
       for (let c = 1; c <= 8; c++) S(r, c, CE(sDataN()));
     }
 
-    if (taxItem) {
-      S(r, 9, C(taxItem.BCEL_CR, sDataN()));
-    } else if (row) {
+    if (row) {
       S(r, 9, C(row["ອາກອນ5%"], sDataN()));
     } else {
       S(r, 9, CE(sDataN()));

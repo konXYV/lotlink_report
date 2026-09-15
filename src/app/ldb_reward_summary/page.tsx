@@ -172,7 +172,7 @@ function buildSheet(dateDisplay: string, dataRows: LdbRow[], taxItems: LdbTaxRow
   //   E = Spin                  (Sokxay ໂຊກ Spin)
   //   F = ລາງວັນ SCN             (SCN ລາງວັນ)
   //   G = LDB_FEE_REWARD_FTR    (SCN ໂຊກຊ້ອນໂຊກ — closest match)
-  //   H = ອາກອນ5% from taxItems
+  //   H = ອາກອນ5% (ຄິດໄລ່ລວມມາຕາມ DRAWID ຈາກ Backend ແລ້ວ)
 
   let sumC=0, sumD=0, sumE=0, sumF=0, sumG=0, sumH=0;
   for (const dr of dataRows) {
@@ -182,14 +182,16 @@ function buildSheet(dateDisplay: string, dataRows: LdbRow[], taxItems: LdbTaxRow
     sumF += parseNum(dr["ລາງວັນ SCN"]);
     sumG += parseNum(dr["LDB_FEE_REWARD_FTR"]);
   }
-  sumH = taxItems.reduce((s,t) => s + t.DEPOSIT, 0);
+  // ອາກອນ5% ຕໍ່ງວດ ໃຊ້ຄ່າ "ອາກອນ5%" ທີ່ Backend ຄິດໄລ່ລວມມາຕາມ DRAWID ແລ້ວ
+  // (ຄືກັນກັບວິທີສະແດງໃນ ສະຫຼຸບລາງວັນ BCEL — REWARD_BCEL_STMT) ແທນທີ່ຈະໃຊ້
+  // ລາຍການ taxItems ແບບຈັບຄູ່ຕາມລໍາດັບ ເຊິ່ງບໍ່ກົງກັບງວດ (DRAWID) ຈິງ
+  for (const dr of dataRows) sumH += parseNum(dr["ອາກອນ5%"]);
 
-  const totalRows = Math.max(dataRows.length, taxItems.length);
+  const totalRows = dataRows.length;
 
   for (let i=0; i<totalRows; i++) {
     const r  = 6 + i;
     const dr = dataRows[i] ?? null;
-    const tx = taxItems[i] ?? null;
 
     if (dr) {
       S(r,0, C(i+1, { font:{name:FONT,sz:10}, alignment:{horizontal:"center",vertical:"center"}, border:medLeft() }));
@@ -199,11 +201,11 @@ function buildSheet(dateDisplay: string, dataRows: LdbRow[], taxItems: LdbTaxRow
       S(r,4, C(parseNum(dr["Spin"]),                      sData("right")));
       S(r,5, C(parseNum(dr["ລາງວັນ SCN"]),                sData("right")));
       S(r,6, C(parseNum(dr["LDB_FEE_REWARD_FTR"]),        sData("right")));
+      S(r,7, C(parseNum(dr["ອາກອນ5%"]),                   sData("right")));
     } else {
       S(r,0, CE({ font:{name:FONT,sz:10}, border:medLeft() }));
-      for (let c=1; c<=6; c++) S(r,c, CE(sData("right")));
+      for (let c=1; c<=7; c++) S(r,c, CE(sData("right")));
     }
-    S(r,7, tx ? C(tx.DEPOSIT, sData("right")) : CE(sData("right")));
   }
 
   // ── SUM row ─────────────────────────────────────────────────────────────────
@@ -441,22 +443,17 @@ export default function LdbRewardSummaryPage() {
   const parseN = (v: string | number | null | undefined) =>
     parseFloat(String(v ?? "0").replace(/,/g, "")) || 0;
 
+  // ອາກອນ5% ຕໍ່ງວດ ໃຊ້ຄ່າ "ອາກອນ5%" ທີ່ Backend ຄິດໄລ່ລວມມາຕາມ DRAWID ແລ້ວ
+  // (ຄືກັນກັບວິທີສະແດງໃນ ສະຫຼຸບລາງວັນ BCEL — REWARD_BCEL_STMT) ແທນທີ່ຈະໃຊ້
+  // ລາຍການ taxItems ແບບຈັບຄູ່ຕາມລໍາດັບ ເຊິ່ງບໍ່ກົງກັບງວດ (DRAWID) ຈິງ
   const mergedRows = useMemo(() => {
-    const maxLen = Math.max(allDataRows.length, taxItems.length);
-    return Array.from({length: maxLen}, (_, i) => ({
-      row: allDataRows[i] ?? null,
-      tx:  taxItems[i]    ?? null,
-      idx: i,
-    })).filter(({row, tx}) => {
-      const hasRow = row ? !!row["ງວດ"] : false;
-      const hasTx  = tx  ? tx.DEPOSIT !== 0 : false;
-      return hasRow || hasTx;
-    });
-  }, [allDataRows, taxItems]);
+    return allDataRows
+      .map((row, idx) => ({ row, idx }))
+      .filter(({ row }) => !!row["ງວດ"] || parseN(row["ອາກອນ5%"]) !== 0);
+  }, [allDataRows]);
 
   const hasData   = hasSearched && mergedRows.length > 0;
   const hasFilter = dateFrom || dateTo;
-  const tax5Total = useMemo(() => taxItems.reduce((s,t) => s + t.DEPOSIT, 0), [taxItems]);
 
   const grandDebt = useMemo(() => totalRow ? parseN(totalRow["ລວມຫນີ້ທັງໝົດ"]) : 0, [totalRow]);
   const grandCred = useMemo(() => totalRow ? parseN(totalRow["ລວມມີທັງໝົດ"])    : 0, [totalRow]);
@@ -657,7 +654,7 @@ export default function LdbRewardSummaryPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {mergedRows.map(({row, tx}, i) => (
+                  {mergedRows.map(({row}, i) => (
                     <tr key={i} className="hover:bg-emerald-50">
                       <td className={TDC}>{i + 1}</td>
                       <td className={TDC + " text-emerald-700 font-semibold"}>{row?.["ງວດ"] ?? ""}</td>
@@ -672,7 +669,7 @@ export default function LdbRewardSummaryPage() {
                       <td className={TD}>{row ? fmtVal(row["LDB_FEE_LOTTO_SELL"])     : ""}</td>
                       <td className={TDH}>{row ? fmtVal(row["ລວມຫນີ້ທັງໝົດ"])          : ""}</td>
                       <td className={TDH}>{row ? fmtVal(row["ລວມມີທັງໝົດ"])            : ""}</td>
-                      <td className={TD}>{tx  ? fmtVal(tx.DEPOSIT)                    : ""}</td>
+                      <td className={TD}>{row ? fmtVal(row["ອາກອນ5%"])                : ""}</td>
                     </tr>
                   ))}
 
@@ -691,7 +688,7 @@ export default function LdbRewardSummaryPage() {
                       <td className={TD + " bg-green-200 font-bold"}>{fmtVal(totalRow["LDB_FEE_LOTTO_SELL"])}</td>
                       <td className={TDH + " bg-green-200 font-bold"}>{fmtVal(totalRow["ລວມຫນີ້ທັງໝົດ"])}</td>
                       <td className={TDH + " bg-green-200 font-bold"}>{fmtVal(totalRow["ລວມມີທັງໝົດ"])}</td>
-                      <td className={TD + " bg-green-200 font-bold"}>{fmtVal(tax5Total)}</td>
+                      <td className={TD + " bg-green-200 font-bold"}>{fmtVal(totalRow["ອາກອນ5%"])}</td>
                     </tr>
                   )}
 
