@@ -21,6 +21,8 @@ export const VIEWS = {
   BCEL_ECOM_SCN: "ECOMMERCE2026.BCEL_ECOM_SCN",
   LOTLINK_BILL: "ECOMMERCE2026.LOTLINK_BILL",
   LOTLINK_BILL_SCN: "ECOMMERCE2026.LOTLINK_BILL_SCN",
+  LOTLINK_REWARD_SCN: "ECOMMERCE2026.LOTLINK_REWARD_SCN",
+  LOTTO_ORDER_BCEL: "LOTTO_ORDER_BCEL@SPLUS_2026_DB",
   BCEL_ONEPAY: "ECOMMERCE2026.BCEL_ONEPAY_TXN_SX",
   JDB_STMT: "ECOMMERCE2026.JDB_STMT",
   LDB_STMT: "ECOMMERCE2026.LDB_STMT",
@@ -36,6 +38,7 @@ export const ACCOUNTS = {
   JDB: "02920020000003191",
   JDB_3180: "02920020000003180",
   LDB: "0302000010005221",
+  BCEL_SCN_REWARD: "0131100213190",
 } as const;
 
 // ─── Allowed sort columns (whitelist against SQL injection) ────────────────
@@ -83,6 +86,7 @@ export const VALID_VIEWS = [
   "ldb_other_items",
   "bcel_other_items",
   "LDB_RECONCILIATION",
+  "ldb_bank_DEPOSIT",
   "sell_summary_by_draw",
   "sell_summary_draw_ids",
   "bcel_onepay_refund_by_draw",
@@ -100,6 +104,8 @@ export const VALID_VIEWS = [
   "unit_sell_summary",
   "overdue_unpaid_reward",
   "scn_reward_quota",
+  "scn_lotlink_reward_recon_by_draw",
+  "lotto_order_bcel_bill_check",
 ] as const;
 
 export type ViewKey = (typeof VALID_VIEWS)[number];

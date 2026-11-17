@@ -70,6 +70,10 @@ import { handleUnitSellSummary } from "./handlers/unit_sell_summary.handler";
 import { handleOverdueUnpaidReward } from "./handlers/overdue_reward.handler";
 // SCN + Sokxay quota reward, by DRAW_ID, switchable by quota
 import { handleScnRewardQuota } from "./handlers/scn_reward_quota.handler";
+// SCN Lotlink reward reconciliation (single page)
+import { handleScnLotlinkRewardRecon } from "./handlers/scn_sell_reconciliation.handler";
+// LOTTO_ORDER_BCEL bill lookup
+import { handleLottoOrderBcelBillCheck } from "./handlers/lotto_order_bcel_check.handler";
 
 export async function GET(req: NextRequest) {
   const params = new URL(req.url).searchParams;
@@ -215,6 +219,14 @@ export async function GET(req: NextRequest) {
       // ── SCN + Sokxay Quota Reward (by DRAW_ID, switchable) ─────────────────
       case "scn_reward_quota":
         return await handleScnRewardQuota(connection, OPT_OBJ, params);
+
+      // ── SCN Lotlink Reward Reconciliation (by draw) ───────────────────────
+      case "scn_lotlink_reward_recon_by_draw":
+        return await handleScnLotlinkRewardRecon(connection, OPT_OBJ, params);
+
+      // ── LOTTO_ORDER_BCEL bill check ───────────────────────────────────────
+      case "lotto_order_bcel_bill_check":
+        return await handleLottoOrderBcelBillCheck(connection, OPT_OBJ, params);
 
       default:
         return NextResponse.json(
