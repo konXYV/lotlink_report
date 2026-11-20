@@ -52,15 +52,22 @@ export async function handleSellSummaryByDraw(
       GROUP  BY DRAW_ID
     ),
     bcel AS (
-      SELECT DRAW_ID AS DID,
-             SUM(CASE WHEN NVL(POINT_CONSUMED, 0) = 0  THEN TOTALSALE      ELSE 0 END) AS BCEL_AMT,
-             SUM(CASE WHEN NVL(POINT_CONSUMED, 0) > 0  THEN POINT_CONSUMED ELSE 0 END) AS POINT_AMT
-      FROM   LOTTO_ORDER_BCEL@SPLUS_2026_DB
-      WHERE  ORDER_STATUS = 'DONE'
-        AND  (:drawFrom IS NULL OR DRAW_ID >= :drawFrom)
-        AND  (:drawTo   IS NULL OR DRAW_ID <= :drawTo)
-      GROUP  BY DRAW_ID
-    ),
+  SELECT o.DRAW_ID AS DID,
+         SUM(CASE WHEN NVL(p.POINT_AMT, 0) = 0 THEN o.TOTALSALE ELSE 0 END) AS BCEL_AMT,
+         SUM(NVL(p.POINT_AMT, 0)) AS POINT_AMT
+  FROM   LOTTO_ORDER_BCEL@SPLUS_2026_DB o
+  LEFT JOIN (
+         SELECT XREF,
+                SUM(AMOUNT) AS POINT_AMT
+         FROM   V2026_POINT_LEDGER@SPLUS_2026_DB
+         WHERE  POINT_TYPE = 'ໃຊ້ຄະແນນຊື້ຫວຍ'
+         GROUP  BY XREF
+  ) p ON p.XREF = o.TICKET
+  WHERE  o.ORDER_STATUS = 'DONE'
+    AND  (:drawFrom IS NULL OR o.DRAW_ID >= :drawFrom)
+    AND  (:drawTo   IS NULL OR o.DRAW_ID <= :drawTo)
+  GROUP  BY o.DRAW_ID
+),
     scn AS (
       SELECT TO_NUMBER(DRAW_ID) AS DID,
              SUM(CASE WHEN PAYMENT_CHANNEL = 'BCEL'    THEN AMOUNT ELSE 0 END) AS SCN_BCEL,
